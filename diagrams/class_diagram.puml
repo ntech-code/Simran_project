@@ -1,0 +1,440 @@
+@startuml Indian Tax Analysis System - Class Diagram
+
+!theme cerulean
+skinparam classAttributeIconSize 0
+skinparam classFontStyle bold
+skinparam packageStyle rectangle
+skinparam linetype ortho
+
+title Indian Tax Analysis System - Detailed Class Diagram\n(Multi-Agent Architecture)
+
+' ==========================================
+' PACKAGE: Core API Layer
+' ==========================================
+package "api" <<Frame>> #E8F5E9 {
+    
+    class FastAPIApp <<Application>> {
+        - title: str = "Indian Tax Analysis API"
+        - description: str
+        - version: str = "1.0.0"
+        --
+        + add_middleware(CORSMiddleware)
+        + get("/") : HealthResponse
+        + get("/rules/current") : RulesResponse
+        + post("/analyze-tax") : TaxAnalysisResponse
+        + post("/compare-regimes") : ComparisonResponse
+        + post("/generate-report") : ReportResponse
+        + post("/simulate-scenario") : SimulationResponse
+        + post("/generate-rules") : RuleGenResponse
+        + post("/chatbot/set-context") : ContextResponse
+        + post("/chatbot/chat") : ChatResponse
+        + get("/chatbot/suggestions") : SuggestionsResponse
+        + post("/chatbot/clear") : ClearResponse
+        + post("/analyze-transactions") : TransactionResponse
+    }
+    
+    note right of FastAPIApp
+        Orchestrator that routes
+        requests to appropriate agents
+    end note
+}
+
+' ==========================================
+' PACKAGE: Pydantic Models (Data Transfer Objects)
+' ==========================================
+package "models" <<Frame>> #FFF3E0 {
+    
+    class UserFinancialData <<Pydantic>> {
+        + gross_income: float {gt=0}
+        + regime: str {pattern="^(old|new)$"}
+        + financial_year: str = "2024-25"
+        + deductions: Dict[str, float]
+        + previous_year_income: Optional[float]
+        --
+        + Config.json_schema_extra: dict
+    }
+    
+    class CompareRegimesData <<Pydantic>> {
+        + gross_income: float {gt=0}
+        + financial_year: str = "2024-25"
+        + deductions_old: Dict[str, float]
+        + deductions_new: Dict[str, float]
+        + previous_year_income: Optional[float]
+    }
+    
+    class SimulationData <<Pydantic>> {
+        + base_income: float {gt=0}
+        + income_increments: List[float]
+        + regime: str {pattern="^(old|new)$"}
+        + deductions: Dict[str, float]
+    }
+    
+    class ChatMessage <<Pydantic>> {
+        + message: str {min_length=1}
+    }
+    
+    class SetChatContext <<Pydantic>> {
+        + gross_income: float
+        + regime: str
+        + deductions: Dict[str, float]
+        + taxable_income: Optional[float]
+        + total_tax: Optional[float]
+        + effective_tax_rate: Optional[float]
+        + risk_score: Optional[float]
+        + risk_level: Optional[str]
+        + compliance_score: Optional[float]
+        + flags: Optional[List[str]]
+    }
+}
+
+' ==========================================
+' PACKAGE: Agent System
+' ==========================================
+package "agents" <<Frame>> #E3F2FD {
+    
+    ' Abstract Agent Interface
+    abstract class BaseAgent <<Abstract>> {
+        # api_key: str
+        # client: genai.Client
+        # model: str
+        --
+        + {abstract} __init__(api_key: Optional[str])
+        # _validate_api_key() : bool
+    }
+    
+    ' ==========================================
+    ' Tax Analyzer Agent
+    ' ==========================================
+    class TaxAnalyzerAgent <<Agent>> {
+        - api_key: str
+        - client: genai.Client
+        - model: str = "gemini-3-flash-preview"
+        - rules: Dict
+        ==
+        + __init__(api_key: Optional[str])
+        + load_rules(regime: str, financial_year: str) : bool
+        + calculate_tax(user_data: Dict) : Dict
+        + detect_fraud(user_data: Dict, tax_result: Dict) : Dict
+        + compare_regimes(user_data: Dict) : Dict
+        + generate_report(user_data: Dict, regime: str) : str
+        --
+        - _calculate_total_deductions(deductions_claimed: Dict) : float
+        - _calculate_slab_tax(taxable_income: float) : float
+        - _calculate_rebate(taxable_income: float, tax_amount: float) : float
+        - _calculate_surcharge(taxable_income: float, tax_before_surcharge: float) : float
+        - _generate_recommendations(flags: List[str], risk_level: str, user_data: Dict) : List[str]
+    }
+    
+    ' ==========================================
+    ' Tax Chatbot Agent
+    ' ==========================================
+    class TaxChatbotAgent <<Agent>> {
+        - api_key: str
+        - client: genai.Client
+        - model: str = "gemini-3-flash-preview"
+        - conversation_history: List[Dict]
+        - user_context: Dict
+        ==
+        + __init__(api_key: Optional[str])
+        + set_user_context(tax_data: Dict) : void
+        + get_context_summary() : str
+        + chat(user_message: str) : str
+        + get_personalized_suggestions() : List[str]
+        + clear_context() : void
+        --
+        - _build_system_prompt() : str
+        - _format_history_for_gemini() : List[Content]
+    }
+    
+    ' ==========================================
+    ' Tax Rule Generator Agent
+    ' ==========================================
+    class TaxRuleGeneratorAgent <<Agent>> {
+        - api_key: str
+        - client: genai.Client
+        - model: str = "gemini-3-flash-preview"
+        - TRUSTED_DOMAINS: List[str] {static}
+        - OFFICIAL_SOURCES: List[str] {static}
+        ==
+        + __init__(api_key: Optional[str])
+        + is_trusted_source(url: str) : bool
+        + fetch_web_content(url: str) : Optional[str]
+        + extract_tax_rules_with_gemini(content: str, financial_year: str) : Dict
+        + generate_rule_file(regime: str, financial_year: str) : Dict
+        --
+        - _get_new_regime_rules(financial_year: str) : Dict
+        - _get_old_regime_rules(financial_year: str) : Dict
+    }
+    
+    ' ==========================================
+    ' Dynamic Tax Rule Generator Agent
+    ' ==========================================
+    class DynamicTaxRuleGeneratorAgent <<Agent>> {
+        - api_key: str
+        - client: genai.Client
+        - model: str = "gemini-3-flash-preview"
+        - TRUSTED_DOMAINS: List[str] {static}
+        - OFFICIAL_URLS: Dict[str, List[str]] {static}
+        ==
+        + __init__(api_key: Optional[str])
+        + is_trusted_source(url: str) : bool
+        + fetch_live_content(url: str, timeout: int) : Optional[str]
+        + crawl_multiple_sources(category: str) : str
+        + extract_with_gemini_dynamic(content: str, regime: str, financial_year: str) : Dict
+        + generate_dynamic_rules(regime: str, financial_year: str) : Dict
+    }
+    
+    ' ==========================================
+    ' Transaction Analyzer Agent
+    ' ==========================================
+    class TransactionAnalyzerAgent <<Agent>> {
+        - model_name: str = "gemini-2.0-flash-exp"
+        - client: genai.Client
+        ==
+        + __init__()
+        + analyze_file(file_path: str) : Dict[str, Any]
+        + get_spending_insights(df: DataFrame) : Dict[str, Any]
+        --
+        - _clean_dataframe(df: DataFrame) : DataFrame
+        - _extract_summary(df: DataFrame) : Dict[str, Any]
+        - _get_ai_analysis(df: DataFrame, summary: Dict) : Dict[str, str]
+        - _parse_ai_response(response: str) : Dict[str, str]
+    }
+    
+    note bottom of TaxAnalyzerAgent
+        Core computation engine
+        - Slab-based tax calculation
+        - Rule-based fraud detection
+        - Multi-regime comparison
+    end note
+    
+    note bottom of TaxChatbotAgent
+        Conversational AI with memory
+        - User context awareness
+        - 4-message history window
+        - Streaming responses
+    end note
+    
+    note bottom of DynamicTaxRuleGeneratorAgent
+        Live data extraction
+        - Government site crawling
+        - Google Search grounding
+        - Real-time rule updates
+    end note
+}
+
+' ==========================================
+' PACKAGE: Tax Rules Domain
+' ==========================================
+package "rules" <<Frame>> #FCE4EC {
+    
+    class TaxRuleSet <<Entity>> {
+        + regime: str
+        + financial_year: str
+        + slabs: List[TaxSlab]
+        + deductions: List[Deduction]
+        + rebates: List[Rebate]
+        + surcharges: List[Surcharge]
+        + cess: Cess
+        + source_urls: List[str]
+        + last_updated: datetime
+    }
+    
+    class TaxSlab <<Value Object>> {
+        + min_income: float
+        + max_income: Optional[float]
+        + rate: float
+    }
+    
+    class Deduction <<Value Object>> {
+        + section: str
+        + name: str
+        + description: str
+        + max_limit: float
+        + applicable_regime: List[str]
+        + note: Optional[str]
+        + sub_limits: Optional[Dict]
+    }
+    
+    class Rebate <<Value Object>> {
+        + section: str
+        + name: str
+        + max_rebate: float
+        + income_threshold: float
+        + applicable_regime: List[str]
+    }
+    
+    class Surcharge <<Value Object>> {
+        + min_income: float
+        + max_income: Optional[float]
+        + rate: float
+    }
+    
+    class Cess <<Value Object>> {
+        + rate: float = 4
+        + name: str = "Health and Education Cess"
+    }
+    
+    TaxRuleSet *-- "many" TaxSlab
+    TaxRuleSet *-- "many" Deduction
+    TaxRuleSet *-- "many" Rebate
+    TaxRuleSet *-- "many" Surcharge
+    TaxRuleSet *-- "1" Cess
+}
+
+' ==========================================
+' PACKAGE: Response Models
+' ==========================================
+package "responses" <<Frame>> #F3E5F5 {
+    
+    class TaxCalculationResult <<DTO>> {
+        + gross_income: float
+        + total_deductions: float
+        + taxable_income: float
+        + tax_breakdown: TaxBreakdown
+        + total_tax: float
+        + effective_tax_rate: float
+        + regime: str
+        + financial_year: str
+    }
+    
+    class TaxBreakdown <<DTO>> {
+        + tax_from_slabs: float
+        + rebate: float
+        + surcharge: float
+        + cess: float
+    }
+    
+    class FraudAnalysisResult <<DTO>> {
+        + risk_score: float
+        + risk_level: str
+        + flags: List[str]
+        + recommendations: List[str]
+        + compliance_score: float
+    }
+    
+    class RegimeComparison <<DTO>> {
+        + better_regime: str
+        + savings: float
+        + old_regime_tax: float
+        + new_regime_tax: float
+    }
+    
+    class TransactionAnalysis <<DTO>> {
+        + total_transactions: int
+        + columns_found: List[str]
+        + date_range: str
+        + total_amount: float
+        + categories_count: int
+        + categories: List[str]
+        + ai_analysis: str
+        + detailed_analysis: str
+        + tax_implications: str
+        + status: str
+    }
+    
+    TaxCalculationResult *-- TaxBreakdown
+}
+
+' ==========================================
+' PACKAGE: External Services
+' ==========================================
+package "external" <<Cloud>> #ECEFF1 {
+    
+    class GeminiClient <<External Service>> {
+        + api_key: str
+        --
+        + models.generate_content(model, contents, config) : Response
+        + models.generate_content_stream(model, contents, config) : Generator
+    }
+    
+    class GoogleSearch <<Tool>> {
+        --
+        + search(query: str) : SearchResults
+    }
+    
+    class GovernmentWebsite <<External>> {
+        + incometax.gov.in
+        + incometaxindia.gov.in
+        + cbdt.gov.in
+        + indiabudget.gov.in
+        --
+        + GET /tax-rules : HTML
+        + GET /deductions : HTML
+    }
+}
+
+' ==========================================
+' PACKAGE: Data Processing
+' ==========================================
+package "data_processing" <<Frame>> #E0F7FA {
+    
+    class PandasProcessor <<Utility>> {
+        --
+        + read_csv(path: str) : DataFrame
+        + read_excel(path: str) : DataFrame
+        + to_numeric(series, errors: str) : Series
+        + to_datetime(series, errors: str) : Series
+        + groupby(column: str) : GroupBy
+    }
+    
+    class BeautifulSoupParser <<Utility>> {
+        --
+        + parse(html: str, parser: str) : BeautifulSoup
+        + get_text(separator: str, strip: bool) : str
+        + find_all(tag: str) : List[Tag]
+        + decompose() : void
+    }
+}
+
+' ==========================================
+' RELATIONSHIPS
+' ==========================================
+
+' Agent Inheritance (conceptual - not literal in Python)
+BaseAgent <|-- TaxAnalyzerAgent
+BaseAgent <|-- TaxChatbotAgent
+BaseAgent <|-- TaxRuleGeneratorAgent
+BaseAgent <|-- DynamicTaxRuleGeneratorAgent
+BaseAgent <|-- TransactionAnalyzerAgent
+
+' FastAPI to Agents
+FastAPIApp --> TaxAnalyzerAgent : uses
+FastAPIApp --> TaxChatbotAgent : uses
+FastAPIApp --> TaxRuleGeneratorAgent : uses
+FastAPIApp --> TransactionAnalyzerAgent : uses
+
+' Models to API
+FastAPIApp ..> UserFinancialData : receives
+FastAPIApp ..> CompareRegimesData : receives
+FastAPIApp ..> SimulationData : receives
+FastAPIApp ..> ChatMessage : receives
+FastAPIApp ..> SetChatContext : receives
+
+' Agents to External Services
+TaxAnalyzerAgent --> GeminiClient : uses
+TaxChatbotAgent --> GeminiClient : uses
+TaxRuleGeneratorAgent --> GeminiClient : uses
+TaxRuleGeneratorAgent --> GovernmentWebsite : crawls
+DynamicTaxRuleGeneratorAgent --> GeminiClient : uses
+DynamicTaxRuleGeneratorAgent --> GoogleSearch : uses
+DynamicTaxRuleGeneratorAgent --> GovernmentWebsite : crawls
+TransactionAnalyzerAgent --> GeminiClient : uses
+
+' Agents to Rules
+TaxAnalyzerAgent --> TaxRuleSet : loads
+TaxRuleGeneratorAgent --> TaxRuleSet : generates
+DynamicTaxRuleGeneratorAgent --> TaxRuleSet : generates
+
+' Agents to Responses
+TaxAnalyzerAgent ..> TaxCalculationResult : returns
+TaxAnalyzerAgent ..> FraudAnalysisResult : returns
+TaxAnalyzerAgent ..> RegimeComparison : returns
+TransactionAnalyzerAgent ..> TransactionAnalysis : returns
+
+' Data Processing
+TransactionAnalyzerAgent --> PandasProcessor : uses
+TaxRuleGeneratorAgent --> BeautifulSoupParser : uses
+DynamicTaxRuleGeneratorAgent --> BeautifulSoupParser : uses
+
+@enduml

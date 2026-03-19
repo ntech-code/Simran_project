@@ -1,0 +1,136 @@
+@startuml Indian Tax Analysis System - Data Flow Diagram
+
+!theme cerulean
+skinparam actorStyle awesome
+
+title Indian Tax Analysis System - Data Flow Diagram\n(Complete Data Movement Visualization)
+
+' ==========================================
+' ACTORS
+' ==========================================
+actor "Taxpayer\n(User)" as user #LightBlue
+actor "System Admin" as admin #LightCoral
+
+' ==========================================
+' EXTERNAL ENTITIES
+' ==========================================
+cloud "Google Gemini\nAI Platform" as gemini #LightPink
+cloud "Google OAuth\n2.0" as oauth #Orange
+cloud "Government\nWebsites" as gov #LightGreen
+
+' ==========================================
+' PROCESSES
+' ==========================================
+package "Frontend Processes" #E8F5E9 {
+    usecase "P1: User\nAuthentication" as p1
+    usecase "P2: Tax Data\nInput & Validation" as p2
+    usecase "P3: Data\nVisualization" as p3
+    usecase "P4: File\nUpload" as p4
+}
+
+package "Backend API Processes" #E3F2FD {
+    usecase "P5: Request\nRouting" as p5
+    usecase "P6: Data\nValidation" as p6
+}
+
+package "Agent Processes" #FCE4EC {
+    usecase "P7: Tax\nCalculation" as p7
+    usecase "P8: Fraud\nDetection" as p8
+    usecase "P9: AI Chat\nProcessing" as p9
+    usecase "P10: Transaction\nAnalysis" as p10
+    usecase "P11: Rule\nGeneration" as p11
+}
+
+' ==========================================
+' DATA STORES
+' ==========================================
+database "D1: Browser\nLocalStorage" as d1 #FFF9C4
+database "D2: Tax Rules\nJSON Files" as d2 #FFE0B2
+database "D3: Agent State\n(Memory)" as d3 #E1BEE7
+database "D4: Temp Files" as d4 #B2DFDB
+
+' ==========================================
+' DATA FLOWS
+' ==========================================
+
+' User Authentication Flow
+user --> p1 : [Login Credentials\n/ Dev Mode Request]
+p1 --> oauth : [OAuth Request]
+oauth --> p1 : [JWT Token]
+p1 --> d1 : [User Session Data]
+
+' Tax Calculation Flow
+user --> p2 : [Income Data:\n- gross_income\n- regime\n- deductions]
+p2 --> p5 : [UserFinancialData JSON]
+p5 --> p6 : [Validate Request]
+p6 --> p7 : [Validated Tax Data]
+d2 --> p7 : [Tax Slabs,\nDeductions,\nRebates]
+p7 --> p8 : [Tax Calculation Result]
+p8 --> p5 : [Combined Result:\n- tax_calculation\n- fraud_analysis]
+p5 --> p2 : [API Response]
+p2 --> d1 : [Store Results]
+d1 --> p3 : [Cached Data]
+p3 --> user : [Charts, Stats,\nBreakdown]
+
+' Chatbot Flow
+user --> p9 : [User Question]
+d1 --> p9 : [User Tax Context]
+d3 --> p9 : [Conversation History]
+p9 --> gemini : [Prompt + Context]
+gemini --> p9 : [AI Response\n(Streaming)]
+p9 --> d3 : [Update History]
+p9 --> user : [Formatted Response\n(Markdown)]
+
+' Transaction Analysis Flow
+user --> p4 : [CSV/Excel File]
+p4 --> p5 : [File Upload\n(multipart/form-data)]
+p5 --> d4 : [Save Temp File]
+d4 --> p10 : [File Path]
+p10 --> gemini : [Sample Data +\nSummary Prompt]
+gemini --> p10 : [AI Analysis:\n- Insights\n- Tax Implications]
+p10 --> p5 : [TransactionAnalysis]
+p5 --> d4 : [Delete Temp File]
+p5 --> user : [Analysis Results]
+
+' Rule Generation Flow
+admin --> p11 : [Generate Rules\n(regime, FY)]
+p11 --> gov : [HTTP Crawl]
+gov --> p11 : [HTML Content]
+p11 --> gemini : [Extract Rules\n(with Google Search)]
+gemini --> p11 : [Structured JSON]
+p11 --> d2 : [Write Rules File]
+p11 --> admin : [Generation Status]
+
+' ==========================================
+' DATA ENTITY DESCRIPTIONS
+' ==========================================
+note right of d1
+    **Browser LocalStorage**
+    - User session info
+    - Tax calculation results
+    - Regime preference
+    - Last calculation timestamp
+end note
+
+note right of d2
+    **Tax Rules JSON Files**
+    - india_tax_2024_25_old.json
+    - india_tax_2024_25_new.json
+    Contains: slabs, deductions,
+    rebates, surcharges, cess
+end note
+
+note right of d3
+    **Agent Memory State**
+    - user_context: Dict
+    - conversation_history: List
+    - rules: Dict (cached)
+end note
+
+note right of d4
+    **Temporary Storage**
+    - Uploaded transaction files
+    - Deleted after processing
+end note
+
+@enduml

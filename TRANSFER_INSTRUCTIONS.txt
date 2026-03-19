@@ -1,0 +1,82 @@
+================================================================
+DOCKER IMAGE TRANSFER INSTRUCTIONS
+================================================================
+
+FILES TO TRANSFER TO TARGET MAC:
+1. tax-backend.tar.gz (226 MB) OR tax-backend.tar (uncompressed)
+2. tax-frontend.tar.gz (22 MB) OR tax-frontend.tar (uncompressed)
+3. docker-compose-deploy.yml (use this one!)
+4. .env file (create on target Mac - see below)
+
+Note: Frontend .env is already baked into the frontend image!
+
+================================================================
+BACKEND .ENV FILE
+================================================================
+Create or transfer .env in the same directory as docker-compose.yml:
+
+GEMINI_API_KEY=AIzaSyAPwFVWJ0Jjol1sLjeMkLhr3FksomQ8UCk
+
+================================================================
+ON TARGET MAC - RUN THESE COMMANDS:
+================================================================
+
+# 1. Load the Docker images
+docker load < tax-backend.tar
+docker load < tax-frontend.tar
+
+# 2. Verify images loaded
+docker images | grep tax-analysis
+
+# 3. Create .env file
+echo "GEMINI_API_KEY=AIzaSyAPwFVWJ0Jjol1sLjeMkLhr3FksomQ8UCk" > .env
+
+# 4. Verify .env file
+cat .env
+
+# 5. Start the services (use the deploy compose file!)
+docker-compose -f docker-compose-deploy.yml up -d
+
+# 6. Check status
+docker-compose -f docker-compose-deploy.yml ps
+docker-compose -f docker-compose-deploy.yml logs
+
+================================================================
+ACCESS THE APPLICATION:
+================================================================
+Frontend:    http://localhost
+Backend API: http://localhost:8000
+API Docs:    http://localhost:8000/docs
+
+================================================================
+USEFUL COMMANDS:
+================================================================
+# Stop services
+docker-compose -f docker-compose-deploy.yml down
+
+# View logs
+docker-compose -f docker-compose-deploy.yml logs -f
+
+# Restart services
+docker-compose -f docker-compose-deploy.yml restart
+
+# Remove everything
+docker-compose -f docker-compose-deploy.yml down
+docker rmi tax-analysis-backend:latest
+docker rmi tax-analysis-frontend:latest
+
+================================================================
+ENVIRONMENT VARIABLES SUMMARY:
+================================================================
+
+BACKEND (.env in root):
+- GEMINI_API_KEY=your_api_key
+
+FRONTEND (already in image):
+- VITE_API_URL=http://localhost:8000
+- VITE_GOOGLE_CLIENT_ID=271351922725-ls1pk12r33jp8v4en04ofhbkpp649hjt.apps.googleusercontent.com
+
+If you need to change frontend env vars, you'll need to rebuild
+the frontend image with the new .env file.
+
+================================================================

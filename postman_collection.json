@@ -1,0 +1,292 @@
+{
+  "info": {
+    "name": "Indian Tax Analysis API",
+    "description": "Multi-Agent Tax Analysis System with Fraud Detection - Complete API Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "tax-analysis-system"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "financial_year",
+      "value": "2024-25",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/",
+          "host": ["{{base_url}}"],
+          "path": [""]
+        },
+        "description": "Check if API is online and running"
+      },
+      "response": []
+    },
+    {
+      "name": "Get Current Tax Rules - Old Regime",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/rules/current?regime=old&financial_year={{financial_year}}",
+          "host": ["{{base_url}}"],
+          "path": ["rules", "current"],
+          "query": [
+            {
+              "key": "regime",
+              "value": "old"
+            },
+            {
+              "key": "financial_year",
+              "value": "{{financial_year}}"
+            }
+          ]
+        },
+        "description": "Fetch tax rules for old regime"
+      },
+      "response": []
+    },
+    {
+      "name": "Get Current Tax Rules - New Regime",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/rules/current?regime=new&financial_year={{financial_year}}",
+          "host": ["{{base_url}}"],
+          "path": ["rules", "current"],
+          "query": [
+            {
+              "key": "regime",
+              "value": "new"
+            },
+            {
+              "key": "financial_year",
+              "value": "{{financial_year}}"
+            }
+          ]
+        },
+        "description": "Fetch tax rules for new regime"
+      },
+      "response": []
+    },
+    {
+      "name": "Analyze Tax - Old Regime (Low Income)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"gross_income\": 500000,\n  \"regime\": \"old\",\n  \"financial_year\": \"2024-25\",\n  \"deductions\": {\n    \"80C\": 50000,\n    \"Standard Deduction\": 50000\n  },\n  \"previous_year_income\": 450000\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/analyze-tax",
+          "host": ["{{base_url}}"],
+          "path": ["analyze-tax"]
+        },
+        "description": "Analyze tax for low income user in old regime"
+      },
+      "response": []
+    },
+    {
+      "name": "Analyze Tax - New Regime (Medium Income)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"gross_income\": 1200000,\n  \"regime\": \"new\",\n  \"financial_year\": \"2024-25\",\n  \"deductions\": {\n    \"Standard Deduction\": 50000\n  },\n  \"previous_year_income\": 1100000\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/analyze-tax",
+          "host": ["{{base_url}}"],
+          "path": ["analyze-tax"]
+        },
+        "description": "Analyze tax for medium income user in new regime"
+      },
+      "response": []
+    },
+    {
+      "name": "Analyze Tax - High Risk Fraud Detection",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"gross_income\": 800000,\n  \"regime\": \"old\",\n  \"financial_year\": \"2024-25\",\n  \"deductions\": {\n    \"80C\": 150000,\n    \"80D\": 75000,\n    \"80G\": 100000,\n    \"80E\": 50000,\n    \"Standard Deduction\": 50000,\n    \"24(b)\": 200000\n  },\n  \"previous_year_income\": 400000\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/analyze-tax",
+          "host": ["{{base_url}}"],
+          "path": ["analyze-tax"]
+        },
+        "description": "Test fraud detection with suspicious deduction patterns"
+      },
+      "response": []
+    },
+    {
+      "name": "Compare Regimes - Medium Income",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"gross_income\": 1200000,\n  \"financial_year\": \"2024-25\",\n  \"deductions_old\": {\n    \"80C\": 150000,\n    \"80D\": 25000,\n    \"Standard Deduction\": 50000\n  },\n  \"deductions_new\": {\n    \"Standard Deduction\": 50000\n  },\n  \"previous_year_income\": 1100000\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/compare-regimes",
+          "host": ["{{base_url}}"],
+          "path": ["compare-regimes"]
+        },
+        "description": "Compare tax burden between old and new regimes"
+      },
+      "response": []
+    },
+    {
+      "name": "Compare Regimes - High Income",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"gross_income\": 2500000,\n  \"financial_year\": \"2024-25\",\n  \"deductions_old\": {\n    \"80C\": 150000,\n    \"80D\": 50000,\n    \"Standard Deduction\": 50000,\n    \"24(b)\": 200000\n  },\n  \"deductions_new\": {\n    \"Standard Deduction\": 50000\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/compare-regimes",
+          "host": ["{{base_url}}"],
+          "path": ["compare-regimes"]
+        },
+        "description": "Compare regimes for high income earner"
+      },
+      "response": []
+    },
+    {
+      "name": "Generate Report - Old Regime",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"gross_income\": 1500000,\n  \"regime\": \"old\",\n  \"financial_year\": \"2024-25\",\n  \"deductions\": {\n    \"80C\": 150000,\n    \"80D\": 50000,\n    \"Standard Deduction\": 50000,\n    \"24(b)\": 150000\n  },\n  \"previous_year_income\": 1400000\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/generate-report",
+          "host": ["{{base_url}}"],
+          "path": ["generate-report"]
+        },
+        "description": "Generate comprehensive text report"
+      },
+      "response": []
+    },
+    {
+      "name": "Simulate Tax Scenarios - Old Regime",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"base_income\": 500000,\n  \"income_increments\": [500000, 750000, 1000000, 1250000, 1500000, 2000000, 2500000],\n  \"regime\": \"old\",\n  \"deductions\": {\n    \"80C\": 150000,\n    \"Standard Deduction\": 50000\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/simulate-scenario",
+          "host": ["{{base_url}}"],
+          "path": ["simulate-scenario"]
+        },
+        "description": "Simulate tax for multiple income levels"
+      },
+      "response": []
+    },
+    {
+      "name": "Simulate Tax Scenarios - New Regime",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"base_income\": 500000,\n  \"income_increments\": [500000, 750000, 1000000, 1250000, 1500000, 2000000, 2500000],\n  \"regime\": \"new\",\n  \"deductions\": {\n    \"Standard Deduction\": 50000\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/simulate-scenario",
+          "host": ["{{base_url}}"],
+          "path": ["simulate-scenario"]
+        },
+        "description": "Simulate tax for multiple income levels in new regime"
+      },
+      "response": []
+    },
+    {
+      "name": "Generate Tax Rules - Both Regimes",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/generate-rules?regime=both&financial_year={{financial_year}}",
+          "host": ["{{base_url}}"],
+          "path": ["generate-rules"],
+          "query": [
+            {
+              "key": "regime",
+              "value": "both"
+            },
+            {
+              "key": "financial_year",
+              "value": "{{financial_year}}"
+            }
+          ]
+        },
+        "description": "Trigger rule generation for both regimes"
+      },
+      "response": []
+    }
+  ]
+}

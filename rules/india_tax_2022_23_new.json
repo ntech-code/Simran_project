@@ -1,0 +1,104 @@
+{
+  "regime": "new",
+  "financial_year": "2022-23",
+  "slabs": [
+    {
+      "min_income": 0,
+      "max_income": 300000,
+      "rate": 0
+    },
+    {
+      "min_income": 300000,
+      "max_income": 700000,
+      "rate": 5
+    },
+    {
+      "min_income": 700000,
+      "max_income": 1000000,
+      "rate": 10
+    },
+    {
+      "min_income": 1000000,
+      "max_income": 1200000,
+      "rate": 15
+    },
+    {
+      "min_income": 1200000,
+      "max_income": 1500000,
+      "rate": 20
+    },
+    {
+      "min_income": 1500000,
+      "max_income": null,
+      "rate": 30
+    }
+  ],
+  "deductions": [
+    {
+      "section": "80CCD(2)",
+      "name": "Employer's contribution to NPS",
+      "description": "Employer's contribution to National Pension Scheme",
+      "max_limit": 0,
+      "applicable_regime": [
+        "new"
+      ],
+      "note": "Up to 10% of salary (Basic + DA)"
+    },
+    {
+      "section": "Standard Deduction",
+      "name": "Standard Deduction",
+      "description": "Flat deduction from salary income",
+      "max_limit": 50000,
+      "applicable_regime": [
+        "new"
+      ]
+    }
+  ],
+  "rebates": [
+    {
+      "section": "87A",
+      "name": "Rebate under section 87A",
+      "max_rebate": 25000,
+      "income_threshold": 700000,
+      "applicable_regime": [
+        "new"
+      ]
+    }
+  ],
+  "surcharges": [
+    {
+      "min_income": 0,
+      "max_income": 5000000,
+      "rate": 0
+    },
+    {
+      "min_income": 5000000,
+      "max_income": 10000000,
+      "rate": 10
+    },
+    {
+      "min_income": 10000000,
+      "max_income": 20000000,
+      "rate": 15
+    },
+    {
+      "min_income": 20000000,
+      "max_income": 50000000,
+      "rate": 25
+    },
+    {
+      "min_income": 50000000,
+      "max_income": null,
+      "rate": 37
+    }
+  ],
+  "cess": {
+    "rate": 4,
+    "name": "Health and Education Cess"
+  },
+  "source_urls": [
+    "https://www.incometax.gov.in/iec/foportal/",
+    "https://incometaxindia.gov.in/"
+  ],
+  "last_updated": "2026-01-05T19:33:39.473781"
+}

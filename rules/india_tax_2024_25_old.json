@@ -1,0 +1,146 @@
+{
+  "regime": "old",
+  "financial_year": "2024-25",
+  "slabs": [
+    {
+      "min_income": 0,
+      "max_income": 250000,
+      "rate": 0
+    },
+    {
+      "min_income": 250000,
+      "max_income": 500000,
+      "rate": 5
+    },
+    {
+      "min_income": 500000,
+      "max_income": 1000000,
+      "rate": 20
+    },
+    {
+      "min_income": 1000000,
+      "max_income": null,
+      "rate": 30
+    }
+  ],
+  "deductions": [
+    {
+      "section": "80C",
+      "name": "Investments and Expenses",
+      "description": "PPF, ELSS, Life Insurance Premium, Principal repayment of home loan, etc.",
+      "max_limit": 150000,
+      "applicable_regime": [
+        "old"
+      ]
+    },
+    {
+      "section": "80D",
+      "name": "Health Insurance Premium",
+      "description": "Medical insurance premium for self, family, and parents",
+      "max_limit": 75000,
+      "applicable_regime": [
+        "old"
+      ],
+      "sub_limits": {
+        "self_family": 25000,
+        "self_family_senior": 50000,
+        "parents": 25000,
+        "parents_senior": 50000
+      }
+    },
+    {
+      "section": "80G",
+      "name": "Donations",
+      "description": "Donations to eligible charitable institutions",
+      "max_limit": 0,
+      "applicable_regime": [
+        "old"
+      ],
+      "note": "50% or 100% of donation amount based on institution"
+    },
+    {
+      "section": "80E",
+      "name": "Education Loan Interest",
+      "description": "Interest on education loan for higher studies",
+      "max_limit": 0,
+      "applicable_regime": [
+        "old"
+      ],
+      "note": "No upper limit, for 8 years maximum"
+    },
+    {
+      "section": "80TTA",
+      "name": "Savings Account Interest",
+      "description": "Interest earned on savings account",
+      "max_limit": 10000,
+      "applicable_regime": [
+        "old"
+      ]
+    },
+    {
+      "section": "Standard Deduction",
+      "name": "Standard Deduction",
+      "description": "Flat deduction from salary income",
+      "max_limit": 50000,
+      "applicable_regime": [
+        "old"
+      ]
+    },
+    {
+      "section": "24(b)",
+      "name": "Home Loan Interest",
+      "description": "Interest on home loan for self-occupied property",
+      "max_limit": 200000,
+      "applicable_regime": [
+        "old"
+      ]
+    }
+  ],
+  "rebates": [
+    {
+      "section": "87A",
+      "name": "Rebate under section 87A",
+      "max_rebate": 12500,
+      "income_threshold": 500000,
+      "applicable_regime": [
+        "old"
+      ]
+    }
+  ],
+  "surcharges": [
+    {
+      "min_income": 0,
+      "max_income": 5000000,
+      "rate": 0
+    },
+    {
+      "min_income": 5000000,
+      "max_income": 10000000,
+      "rate": 10
+    },
+    {
+      "min_income": 10000000,
+      "max_income": 20000000,
+      "rate": 15
+    },
+    {
+      "min_income": 20000000,
+      "max_income": 50000000,
+      "rate": 25
+    },
+    {
+      "min_income": 50000000,
+      "max_income": null,
+      "rate": 37
+    }
+  ],
+  "cess": {
+    "rate": 4,
+    "name": "Health and Education Cess"
+  },
+  "source_urls": [
+    "https://www.incometax.gov.in/iec/foportal/",
+    "https://incometaxindia.gov.in/"
+  ],
+  "last_updated": "2026-01-01T17:23:08.347355"
+}

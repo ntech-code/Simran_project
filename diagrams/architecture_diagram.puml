@@ -1,0 +1,344 @@
+@startuml Indian Tax Analysis System - Architecture Diagram
+
+!theme cerulean
+skinparam backgroundColor #FEFEFE
+skinparam componentStyle rectangle
+skinparam linetype ortho
+
+title Indian Tax Analysis System - Complete Architecture Diagram\n(Multi-Agent AI System with Detailed Component Breakdown)
+
+' ==========================================
+' LEGEND
+' ==========================================
+legend right
+    |= Symbol |= Meaning |
+    | <#E8F5E9> | Frontend Layer |
+    | <#E3F2FD> | Backend/API Layer |
+    | <#FCE4EC> | Agent Layer |
+    | <#FFF3E0> | Data Layer |
+    | <#F3E5F5> | External Services |
+    | <#ECEFF1> | Infrastructure |
+endlegend
+
+' ==========================================
+' PACKAGE: Client/Presentation Layer
+' ==========================================
+package "Presentation Layer" <<Rectangle>> #E8F5E9 {
+    
+    package "React Frontend" as react_pkg {
+        
+        component "Vite Dev Server\n:3000" as vite <<Build Tool>>
+        
+        package "Pages" {
+            component [Login.jsx] as login
+            component [Dashboard.jsx] as dashboard
+            component [TaxCalculator.jsx] as tax_calc
+            component [CompareRegimes.jsx] as compare
+            component [TransactionAnalyzer.jsx] as tx_analyzer
+            component [Reports.jsx] as reports
+            component [TaxRules.jsx] as tax_rules
+            component [Chatbot.jsx] as chatbot_page
+        }
+        
+        package "Components" {
+            component [ChatbotBubble.jsx] as chatbot_bubble
+            component [ProtectedRoute.jsx] as protected
+        }
+        
+        package "Context" {
+            component [AuthContext] as auth_ctx
+        }
+        
+        package "Libraries" {
+            component [React 18] as react
+            component [React Router 6] as router
+            component [Axios] as axios
+            component [Recharts] as recharts
+            component [react-markdown] as markdown
+        }
+    }
+    
+    component "Browser\n(Chrome/Firefox/Safari)" as browser <<User Agent>>
+    component "LocalStorage" as local_storage <<Browser Storage>>
+}
+
+' ==========================================
+' PACKAGE: Application Layer
+' ==========================================
+package "Application Layer" <<Rectangle>> #E3F2FD {
+    
+    package "FastAPI Application" as fastapi_pkg {
+        
+        component "FastAPI App\n(main.py)" as fastapi <<ASGI Application>>
+        
+        package "Middleware" {
+            component [CORS Middleware] as cors
+        }
+        
+        package "API Endpoints" {
+            component "/analyze-tax" as ep_analyze
+            component "/compare-regimes" as ep_compare
+            component "/generate-report" as ep_report
+            component "/simulate-scenario" as ep_simulate
+            component "/rules/current" as ep_rules_get
+            component "/generate-rules" as ep_rules_gen
+            component "/chatbot/*" as ep_chatbot
+            component "/analyze-transactions" as ep_transactions
+        }
+        
+        package "Request Models\n(Pydantic)" {
+            component [UserFinancialData] as model_user
+            component [CompareRegimesData] as model_compare
+            component [SimulationData] as model_sim
+            component [ChatMessage] as model_chat
+            component [SetChatContext] as model_ctx
+        }
+    }
+    
+    component "Uvicorn ASGI Server\n:8000" as uvicorn <<Server>>
+}
+
+' ==========================================
+' PACKAGE: Agent Layer (Custom Multi-Agent System)
+' ==========================================
+package "Agent Layer\n(Custom Multi-Agent Framework)" <<Rectangle>> #FCE4EC {
+    
+    package "Core Agents" {
+        
+        component "TaxAnalyzerAgent" as agent_analyzer <<Computation Agent>> {
+            portin load_rules
+            portin calculate_tax
+            portin detect_fraud
+            portin compare_regimes
+            portin generate_report
+        }
+        
+        component "TaxChatbotAgent" as agent_chatbot <<Conversational Agent>> {
+            portin set_user_context
+            portin chat
+            portin get_personalized_suggestions
+            portin clear_context
+        }
+        
+        component "TaxRuleGeneratorAgent" as agent_rule_gen <<Data Extraction Agent>> {
+            portin is_trusted_source
+            portin fetch_web_content
+            portin extract_tax_rules_with_gemini
+            portin generate_rule_file
+        }
+        
+        component "DynamicTaxRuleGeneratorAgent" as agent_dynamic <<Live Crawling Agent>> {
+            portin fetch_live_content
+            portin crawl_multiple_sources
+            portin extract_with_gemini_dynamic
+            portin generate_dynamic_rules
+        }
+        
+        component "TransactionAnalyzerAgent" as agent_transaction <<File Processing Agent>> {
+            portin analyze_file
+            portin get_spending_insights
+        }
+    }
+    
+    package "Agent State" {
+        database "user_context\n(Dict)" as state_ctx
+        database "conversation_history\n(List[Dict])" as state_history
+        database "rules\n(Dict)" as state_rules
+    }
+}
+
+' ==========================================
+' PACKAGE: Data Layer
+' ==========================================
+package "Data Layer" <<Rectangle>> #FFF3E0 {
+    
+    package "Tax Rules Repository" {
+        database "india_tax_2024_25_old.json" as rules_old
+        database "india_tax_2024_25_new.json" as rules_new
+        database "india_tax_2023_24_new.json" as rules_2023
+    }
+    
+    package "Temporary Storage" {
+        folder "temp/\n(Uploaded Files)" as temp_files
+    }
+    
+    package "Data Processing" {
+        component [Pandas] as pandas <<DataFrame>>
+        component [NumPy] as numpy <<Array>>
+        component [openpyxl] as openpyxl <<Excel>>
+    }
+}
+
+' ==========================================
+' PACKAGE: External Services
+' ==========================================
+package "External Services" <<Cloud>> #F3E5F5 {
+    
+    package "Google AI Platform" {
+        
+        cloud "Gemini AI API" as gemini_api {
+            component "gemini-3-flash-preview" as model_3_flash
+            component "gemini-2.0-flash-exp" as model_2_flash
+        }
+        
+        component "ThinkingConfig\n(MEDIUM/HIGH)" as thinking
+        component "GoogleSearch\n(Grounding Tool)" as google_search
+    }
+    
+    package "Authentication" {
+        cloud "Google OAuth 2.0" as google_oauth {
+            component "OAuth Consent Screen" as oauth_consent
+            component "JWT Token Provider" as jwt_provider
+        }
+    }
+    
+    package "Government Data Sources" {
+        cloud "incometax.gov.in" as gov_it
+        cloud "incometaxindia.gov.in" as gov_itd
+        cloud "cbdt.gov.in" as gov_cbdt
+        cloud "indiabudget.gov.in" as gov_budget
+    }
+}
+
+' ==========================================
+' PACKAGE: Infrastructure Layer
+' ==========================================
+package "Infrastructure Layer" <<Rectangle>> #ECEFF1 {
+    
+    package "Development" {
+        component "Python 3.11" as python
+        component "Node.js 18" as nodejs
+        component "npm" as npm
+        component "pip" as pip
+    }
+    
+    package "Containerization" {
+        component "Docker" as docker
+        component "docker-compose.yml" as docker_compose
+        
+        node "Backend Container" as container_be {
+            component [python:3.11-slim] as img_python
+        }
+        
+        node "Frontend Container" as container_fe {
+            component [nginx:alpine] as img_nginx
+        }
+    }
+    
+    package "Environment" {
+        file ".env" as env_be <<Backend>>
+        file "frontend/.env" as env_fe <<Frontend>>
+    }
+    
+    package "Network" {
+        component "tax-network\n(bridge)" as network
+        port ":8000" as port_be
+        port ":80" as port_fe
+    }
+}
+
+' ==========================================
+' RELATIONSHIPS - Frontend to Backend
+' ==========================================
+
+browser --> vite : HTTP :3000 (dev)
+browser --> local_storage : R/W
+browser --> img_nginx : HTTP :80 (prod)
+
+login --> auth_ctx : useAuth()
+dashboard --> auth_ctx : useAuth()
+tax_calc --> axios : POST /analyze-tax
+compare --> axios : POST /compare-regimes
+tx_analyzer --> axios : POST /analyze-transactions
+reports --> axios : POST /generate-report
+chatbot_bubble --> axios : POST /chatbot/chat
+tax_rules --> axios : GET /rules/current
+
+axios --> uvicorn : HTTP Requests
+
+' ==========================================
+' RELATIONSHIPS - Backend Internal
+' ==========================================
+
+uvicorn --> fastapi : ASGI
+fastapi --> cors : middleware
+fastapi --> model_user : validate
+fastapi --> model_compare : validate
+fastapi --> model_chat : validate
+
+ep_analyze --> agent_analyzer
+ep_compare --> agent_analyzer
+ep_report --> agent_analyzer
+ep_simulate --> agent_analyzer
+ep_rules_get --> rules_old : read
+ep_rules_get --> rules_new : read
+ep_rules_gen --> agent_rule_gen
+ep_chatbot --> agent_chatbot
+ep_transactions --> agent_transaction
+
+' ==========================================
+' RELATIONSHIPS - Agents to State
+' ==========================================
+
+agent_analyzer --> state_rules : load/cache
+agent_chatbot --> state_ctx : store
+agent_chatbot --> state_history : append
+
+' ==========================================
+' RELATIONSHIPS - Agents to Data
+' ==========================================
+
+agent_analyzer --> rules_old : JSON read
+agent_analyzer --> rules_new : JSON read
+agent_rule_gen --> rules_old : JSON write
+agent_rule_gen --> rules_new : JSON write
+agent_dynamic --> rules_old : JSON write
+agent_dynamic --> rules_new : JSON write
+
+agent_transaction --> pandas : DataFrame ops
+agent_transaction --> temp_files : process & delete
+
+' ==========================================
+' RELATIONSHIPS - Agents to External Services
+' ==========================================
+
+agent_analyzer --> model_3_flash : (optional)
+agent_chatbot --> model_3_flash : streaming
+agent_rule_gen --> model_3_flash : extraction
+agent_dynamic --> model_3_flash : extraction
+agent_dynamic --> google_search : grounding
+agent_transaction --> model_2_flash : analysis
+
+agent_rule_gen --> gov_it : HTTP crawl
+agent_rule_gen --> gov_itd : HTTP crawl
+agent_dynamic --> gov_it : HTTP crawl
+agent_dynamic --> gov_cbdt : HTTP crawl
+agent_dynamic --> gov_budget : HTTP crawl
+
+' ==========================================
+' RELATIONSHIPS - Authentication
+' ==========================================
+
+login --> google_oauth : OAuth 2.0 flow
+google_oauth --> jwt_provider : issue token
+jwt_provider --> login : credential JWT
+login --> local_storage : store user
+
+' ==========================================
+' RELATIONSHIPS - Infrastructure
+' ==========================================
+
+docker_compose --> container_be : orchestrate
+docker_compose --> container_fe : orchestrate
+container_be --> network
+container_fe --> network
+network --> port_be
+network --> port_fe
+
+container_be --> env_be : load
+container_fe --> env_fe : load
+
+img_python --> fastapi : runs
+img_nginx --> react_pkg : serves
+
+@enduml

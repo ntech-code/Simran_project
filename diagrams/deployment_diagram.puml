@@ -1,0 +1,187 @@
+@startuml Indian Tax Analysis System - Deployment Diagram
+
+!theme cerulean
+skinparam nodeStyle rectangle
+
+title Indian Tax Analysis System - Deployment Diagram\n(Infrastructure & Container Architecture)
+
+' ==========================================
+' DEPLOYMENT NODES
+' ==========================================
+
+' User Environment
+node "User Environment" <<Device>> #E8F5E9 {
+    
+    node "Web Browser" <<Execution Environment>> #C8E6C9 {
+        artifact "React SPA Bundle" as react_bundle
+        artifact "LocalStorage" as local_storage
+        component "JavaScript Runtime" as js_runtime
+    }
+    
+    note right of "Web Browser"
+        Supported Browsers:
+        - Chrome (latest)
+        - Firefox (latest)
+        - Safari (latest)
+        - Edge (latest)
+    end note
+}
+
+' Development Environment
+node "Development Machine" <<Device>> #FFF3E0 {
+    
+    node "Backend Dev" <<Execution Environment>> #FFE0B2 {
+        artifact "Python 3.11" as python_dev
+        artifact "Uvicorn (reload)" as uvicorn_dev
+        artifact ".env" as env_dev
+        component "FastAPI App" as fastapi_dev
+        folder "agents/" as agents_dev
+        folder "rules/" as rules_dev
+    }
+    
+    node "Frontend Dev" <<Execution Environment>> #FFCC80 {
+        artifact "Node.js 18" as node_dev
+        artifact "Vite Dev Server" as vite_dev
+        artifact "package.json" as package_dev
+        component "React App" as react_dev
+    }
+    
+    node "Git Repository" <<Version Control>> #FFA726 {
+        folder ".git/" as git_folder
+    }
+}
+
+' Production Environment - Docker
+node "Production Server" <<Device>> #E3F2FD {
+    
+    node "Docker Host" <<Container Runtime>> #BBDEFB {
+        
+        node "tax-network (bridge)" <<Network>> #90CAF9 {
+            
+            node "tax-analysis-backend" <<Container>> #64B5F6 {
+                artifact "python:3.11-slim" as python_img
+                component "Uvicorn ASGI" as uvicorn_prod
+                component "FastAPI App" as fastapi_prod
+                folder "agents/" as agents_prod
+                folder "rules/" as rules_prod
+                folder "data/" as data_prod
+                port "8000" as port_be
+            }
+            
+            node "tax-analysis-frontend" <<Container>> #42A5F5 {
+                artifact "nginx:alpine" as nginx_img
+                component "Nginx Server" as nginx
+                artifact "Static Build" as static_build
+                artifact "nginx.conf" as nginx_conf
+                port "80" as port_fe
+            }
+        }
+        
+        artifact "docker-compose.yml" as compose
+        artifact ".env (secrets)" as env_prod
+    }
+    
+    database "Volume: ./data" as vol_data
+    database "Volume: ./rules" as vol_rules
+    database "Volume: ./schemas" as vol_schemas
+}
+
+' External Services
+cloud "Google Cloud Platform" <<Cloud>> #F3E5F5 {
+    
+    node "Gemini AI API" <<Service>> #E1BEE7 {
+        component "gemini-3-flash-preview" as model_3
+        component "gemini-2.0-flash-exp" as model_2
+        component "Google Search API" as search_api
+    }
+    
+    node "Google OAuth 2.0" <<Service>> #CE93D8 {
+        component "OAuth Consent" as oauth_consent
+        component "Token Endpoint" as token_endpoint
+    }
+}
+
+cloud "Government Websites" <<External>> #C8E6C9 {
+    node "incometax.gov.in" as gov1
+    node "incometaxindia.gov.in" as gov2
+    node "cbdt.gov.in" as gov3
+}
+
+' ==========================================
+' CONNECTIONS
+' ==========================================
+
+' User to Frontend
+react_bundle --> fastapi_prod : REST API (HTTP)
+react_bundle --> "Google OAuth 2.0" : OAuth 2.0 Flow
+
+' Development connections
+react_dev --> fastapi_dev : localhost:8000
+vite_dev --> react_dev : HMR
+fastapi_dev --> agents_dev : imports
+agents_dev --> rules_dev : JSON R/W
+
+' Production connections
+nginx --> static_build : serves
+port_fe --> nginx : HTTP :80
+port_be --> uvicorn_prod : HTTP :8000
+fastapi_prod --> agents_prod : imports
+agents_prod --> rules_prod : JSON R/W
+
+' Docker volumes
+vol_data --> data_prod : mount
+vol_rules --> rules_prod : mount
+compose --> "tax-analysis-backend" : orchestrates
+compose --> "tax-analysis-frontend" : orchestrates
+
+' External service connections
+agents_prod --> "Gemini AI API" : HTTPS
+agents_prod --> "Government Websites" : HTTP(S) Crawl
+react_bundle --> "Google OAuth 2.0" : HTTPS
+
+' ==========================================
+' DEPLOYMENT SPECIFICATIONS
+' ==========================================
+
+note bottom of "tax-analysis-backend"
+    **Backend Container Spec**
+    Image: python:3.11-slim
+    Exposed Port: 8000
+    Memory: 512MB - 2GB
+    CPU: 0.5 - 2 cores
+    Environment:
+      - GEMINI_API_KEY
+      - PYTHONUNBUFFERED=1
+      - PYTHONIOENCODING=utf-8
+end note
+
+note bottom of "tax-analysis-frontend"
+    **Frontend Container Spec**
+    Image: nginx:alpine
+    Exposed Port: 80
+    Memory: 128MB
+    CPU: 0.25 cores
+    Depends on: backend
+end note
+
+note right of "Gemini AI API"
+    **API Requirements**
+    - Valid GEMINI_API_KEY
+    - Rate limits apply
+    - Streaming supported
+    - Google Search grounding
+end note
+
+' ==========================================
+' NETWORK FLOW LEGEND
+' ==========================================
+
+legend right
+    |= Port |= Service |= Protocol |
+    | 80 | Nginx (Frontend) | HTTP |
+    | 443 | External APIs | HTTPS |
+    | 3000 | Vite Dev Server | HTTP |
+    | 8000 | Uvicorn (Backend) | HTTP |
+endlegend
+
+@enduml

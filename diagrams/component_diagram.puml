@@ -1,0 +1,290 @@
+@startuml Indian Tax Analysis System - Component Diagram
+
+!theme cerulean
+skinparam componentStyle uml2
+skinparam linetype ortho
+
+title Indian Tax Analysis System - Detailed Component Diagram\n(Package-wise Breakdown)
+
+' ==========================================
+' PACKAGE: Frontend Components
+' ==========================================
+package "frontend" <<Node>> #E8F5E9 {
+    
+    package "src" {
+        
+        package "pages" #C8E6C9 {
+            [Login] as login
+            [Dashboard] as dashboard
+            [TaxCalculator] as tax_calc
+            [CompareRegimes] as compare
+            [TransactionAnalyzer] as tx_analyzer
+            [Reports] as reports
+            [TaxRules] as tax_rules
+            [Chatbot] as chatbot_page
+        }
+        
+        package "components" #A5D6A7 {
+            [ChatbotBubble] as chatbot_bubble
+            [ProtectedRoute] as protected_route
+        }
+        
+        package "context" #81C784 {
+            [AuthContext] as auth_context
+            [AuthProvider] as auth_provider
+        }
+        
+        package "utils" #66BB6A {
+            [api.js] as api_utils
+            [helpers.js] as helpers
+        }
+        
+        [App.jsx] as app
+        [main.jsx] as main
+    }
+    
+    package "public" {
+        [index.html] as index_html
+        folder "assets" as assets
+    }
+    
+    package "config" {
+        [vite.config.js] as vite_config
+        [package.json] as package_json
+        [.env] as env_fe
+    }
+}
+
+' ==========================================
+' PACKAGE: Backend API
+' ==========================================
+package "api" <<Node>> #E3F2FD {
+    
+    package "main.py" #90CAF9 {
+        [FastAPI App Instance] as fastapi_instance
+        
+        package "Endpoints" #64B5F6 {
+            [Health Check\n GET /] as ep_health
+            [Tax Analysis\n POST /analyze-tax] as ep_analyze
+            [Compare Regimes\n POST /compare-regimes] as ep_compare
+            [Generate Report\n POST /generate-report] as ep_report
+            [Simulate Scenario\n POST /simulate-scenario] as ep_simulate
+            [Get Rules\n GET /rules/current] as ep_rules_get
+            [Generate Rules\n POST /generate-rules] as ep_rules_gen
+            [Set Context\n POST /chatbot/set-context] as ep_context
+            [Chat\n POST /chatbot/chat] as ep_chat
+            [Suggestions\n GET /chatbot/suggestions] as ep_suggestions
+            [Clear Chat\n POST /chatbot/clear] as ep_clear
+            [Analyze Transactions\n POST /analyze-transactions] as ep_transactions
+        }
+        
+        package "Pydantic Models" #42A5F5 {
+            [UserFinancialData] as m_user
+            [CompareRegimesData] as m_compare
+            [SimulationData] as m_sim
+            [ChatMessage] as m_chat
+            [SetChatContext] as m_ctx
+        }
+        
+        package "Middleware" #2196F3 {
+            [CORSMiddleware] as cors_mw
+        }
+    }
+}
+
+' ==========================================
+' PACKAGE: Agent System
+' ==========================================
+package "agents" <<Node>> #FCE4EC {
+    
+    package "tax_analyzer.py" #F8BBD9 {
+        [TaxAnalyzerAgent] as tax_agent
+        
+        package "Public Methods" #F48FB1 {
+            [load_rules()] as ta_load
+            [calculate_tax()] as ta_calc
+            [detect_fraud()] as ta_fraud
+            [compare_regimes()] as ta_compare
+            [generate_report()] as ta_report
+        }
+        
+        package "Private Methods" #EC407A {
+            [_calculate_total_deductions()] as ta_ded
+            [_calculate_slab_tax()] as ta_slab
+            [_calculate_rebate()] as ta_rebate
+            [_calculate_surcharge()] as ta_sur
+            [_generate_recommendations()] as ta_rec
+        }
+    }
+    
+    package "tax_chatbot.py" #E1BEE7 {
+        [TaxChatbotAgent] as chat_agent
+        
+        package "State" #CE93D8 {
+            [user_context: Dict] as chat_ctx
+            [conversation_history: List] as chat_hist
+        }
+        
+        package "Methods" #BA68C8 {
+            [set_user_context()] as cb_set
+            [get_context_summary()] as cb_summary
+            [chat()] as cb_chat
+            [get_personalized_suggestions()] as cb_suggest
+            [clear_context()] as cb_clear
+        }
+    }
+    
+    package "tax_rule_generator.py" #D1C4E9 {
+        [TaxRuleGeneratorAgent] as rule_agent
+        
+        package "Constants" #B39DDB {
+            [TRUSTED_DOMAINS] as rg_domains
+            [OFFICIAL_SOURCES] as rg_sources
+        }
+        
+        package "Methods" #9575CD {
+            [is_trusted_source()] as rg_trust
+            [fetch_web_content()] as rg_fetch
+            [extract_tax_rules_with_gemini()] as rg_extract
+            [generate_rule_file()] as rg_gen
+            [_get_old_regime_rules()] as rg_old
+            [_get_new_regime_rules()] as rg_new
+        }
+    }
+    
+    package "tax_rule_generator_dynamic.py" #BBDEFB {
+        [DynamicTaxRuleGeneratorAgent] as dyn_agent
+        
+        package "Methods" #90CAF9 {
+            [fetch_live_content()] as dyn_fetch
+            [crawl_multiple_sources()] as dyn_crawl
+            [extract_with_gemini_dynamic()] as dyn_extract
+            [generate_dynamic_rules()] as dyn_gen
+        }
+    }
+    
+    package "transaction_analyzer.py" #B2DFDB {
+        [TransactionAnalyzerAgent] as tx_agent
+        
+        package "Methods" #80CBC4 {
+            [analyze_file()] as tx_analyze
+            [_clean_dataframe()] as tx_clean
+            [_extract_summary()] as tx_summary
+            [_get_ai_analysis()] as tx_ai
+            [_parse_ai_response()] as tx_parse
+            [get_spending_insights()] as tx_insights
+        }
+    }
+}
+
+' ==========================================
+' PACKAGE: Rules Data
+' ==========================================
+package "rules" <<Database>> #FFF3E0 {
+    database "india_tax_2024_25_old.json" as rule_old_24
+    database "india_tax_2024_25_new.json" as rule_new_24
+    database "india_tax_2023_24_new.json" as rule_new_23
+    database "india_tax_2022_23_old.json" as rule_old_22
+    database "india_tax_2022_23_new.json" as rule_new_22
+}
+
+' ==========================================
+' PACKAGE: External Dependencies
+' ==========================================
+package "dependencies" <<Cloud>> #ECEFF1 {
+    
+    package "AI/ML" #CFD8DC {
+        [google-genai] as dep_genai
+        [google.genai.types] as dep_types
+    }
+    
+    package "Web Framework" #B0BEC5 {
+        [FastAPI] as dep_fastapi
+        [Uvicorn] as dep_uvicorn
+        [Pydantic] as dep_pydantic
+    }
+    
+    package "Data Processing" #90A4AE {
+        [Pandas] as dep_pandas
+        [NumPy] as dep_numpy
+        [openpyxl] as dep_openpyxl
+    }
+    
+    package "Web Scraping" #78909C {
+        [Requests] as dep_requests
+        [BeautifulSoup4] as dep_bs4
+        [lxml] as dep_lxml
+    }
+    
+    package "Frontend Libs" #607D8B {
+        [React] as dep_react
+        [react-router-dom] as dep_router
+        [Axios] as dep_axios
+        [Recharts] as dep_recharts
+        [@react-oauth/google] as dep_oauth
+    }
+}
+
+' ==========================================
+' RELATIONSHIPS
+' ==========================================
+
+' Frontend internal
+main --> app
+app --> login
+app --> dashboard
+app --> tax_calc
+app --> compare
+app --> tx_analyzer
+app --> reports
+app --> tax_rules
+app --> chatbot_page
+app --> chatbot_bubble
+app --> protected_route
+app --> auth_context
+
+' Frontend to API
+tax_calc --> ep_analyze : HTTP POST
+compare --> ep_compare : HTTP POST
+tx_analyzer --> ep_transactions : HTTP POST
+reports --> ep_report : HTTP POST
+chatbot_bubble --> ep_chat : HTTP POST
+chatbot_bubble --> ep_context : HTTP POST
+tax_rules --> ep_rules_get : HTTP GET
+
+' API to Agents
+ep_analyze --> tax_agent
+ep_compare --> tax_agent
+ep_report --> tax_agent
+ep_simulate --> tax_agent
+ep_rules_gen --> rule_agent
+ep_context --> chat_agent
+ep_chat --> chat_agent
+ep_suggestions --> chat_agent
+ep_clear --> chat_agent
+ep_transactions --> tx_agent
+
+' Agents to Rules
+ta_load --> rule_old_24
+ta_load --> rule_new_24
+rg_gen --> rule_old_24
+rg_gen --> rule_new_24
+dyn_gen --> rule_old_24
+dyn_gen --> rule_new_24
+
+' Agents to Dependencies
+tax_agent ..> dep_genai
+chat_agent ..> dep_genai
+rule_agent ..> dep_genai
+rule_agent ..> dep_bs4
+rule_agent ..> dep_requests
+dyn_agent ..> dep_genai
+dyn_agent ..> dep_bs4
+tx_agent ..> dep_genai
+tx_agent ..> dep_pandas
+
+' API to Dependencies
+fastapi_instance ..> dep_fastapi
+m_user ..> dep_pydantic
+
+@enduml

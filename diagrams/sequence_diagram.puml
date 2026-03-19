@@ -1,0 +1,471 @@
+@startuml Indian Tax Analysis System - Sequence Diagrams
+
+!theme cerulean
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam maxMessageSize 200
+
+title Indian Tax Analysis System - Sequence Diagrams\n(All Major Workflows)
+
+' ==========================================
+' SEQUENCE 1: Tax Calculation Flow
+' ==========================================
+newpage Tax Calculation Flow
+
+actor User as user #LightBlue
+participant "React Frontend\n(TaxCalculator.jsx)" as frontend #LightGreen
+participant "FastAPI\n(main.py)" as api #Orange
+participant "TaxAnalyzerAgent" as analyzer #LightCoral
+participant "Rules JSON\n(rules/)" as rules #LightYellow
+participant "Gemini AI\n(Optional)" as gemini #LightPink
+
+box "Frontend Layer" #E8F5E9
+    participant frontend
+end box
+
+box "Backend Layer" #E3F2FD
+    participant api
+    participant analyzer
+    participant rules
+end box
+
+box "External Services" #FCE4EC
+    participant gemini
+end box
+
+user -> frontend : Enter income details\n(gross_income, regime, deductions)
+activate frontend
+
+frontend -> frontend : Validate input\n(client-side)
+
+frontend -> api : POST /analyze-tax\n{UserFinancialData}
+activate api
+
+api -> api : Pydantic validation
+
+api -> analyzer : calculate_tax(user_data)
+activate analyzer
+
+analyzer -> rules : load_rules(regime, FY)
+activate rules
+rules --> analyzer : TaxRuleSet JSON
+deactivate rules
+
+analyzer -> analyzer : _calculate_total_deductions()
+analyzer -> analyzer : _calculate_slab_tax()
+analyzer -> analyzer : _calculate_rebate()
+analyzer -> analyzer : _calculate_surcharge()
+analyzer -> analyzer : Calculate cess (4%)
+
+analyzer --> api : TaxCalculationResult
+deactivate analyzer
+
+api -> analyzer : detect_fraud(user_data, tax_result)
+activate analyzer
+
+analyzer -> analyzer : Check deduction ratio (>50%)
+analyzer -> analyzer : Check max-limit claims
+analyzer -> analyzer : Check regime validity
+analyzer -> analyzer : Check income patterns
+analyzer -> analyzer : Calculate risk_score
+
+analyzer --> api : FraudAnalysisResult
+deactivate analyzer
+
+api --> frontend : JSON Response\n{tax_calculation, fraud_analysis}
+deactivate api
+
+frontend -> frontend : Update state\nStore in localStorage
+
+frontend -> api : POST /chatbot/set-context\n{SetChatContext}
+activate api
+api --> frontend : Context updated
+deactivate api
+
+frontend --> user : Display results\n(Tax breakdown, charts, risk score)
+deactivate frontend
+
+' ==========================================
+' SEQUENCE 2: Regime Comparison Flow
+' ==========================================
+newpage Regime Comparison Flow
+
+actor User as user2 #LightBlue
+participant "React Frontend\n(CompareRegimes.jsx)" as frontend2 #LightGreen
+participant "FastAPI\n(main.py)" as api2 #Orange
+participant "TaxAnalyzerAgent" as analyzer2 #LightCoral
+participant "Rules JSON\n(Old Regime)" as rules_old #LightYellow
+participant "Rules JSON\n(New Regime)" as rules_new #LightCyan
+
+user2 -> frontend2 : Enter comparison data\n(income, deductions for both)
+activate frontend2
+
+frontend2 -> api2 : POST /compare-regimes\n{CompareRegimesData}
+activate api2
+
+api2 -> analyzer2 : compare_regimes(user_data)
+activate analyzer2
+
+group Old Regime Calculation
+    analyzer2 -> rules_old : load_rules("old", FY)
+    activate rules_old
+    rules_old --> analyzer2 : Old regime rules
+    deactivate rules_old
+    
+    analyzer2 -> analyzer2 : calculate_tax(old_data)
+    analyzer2 -> analyzer2 : detect_fraud(old_data)
+end
+
+group New Regime Calculation
+    analyzer2 -> rules_new : load_rules("new", FY)
+    activate rules_new
+    rules_new --> analyzer2 : New regime rules
+    deactivate rules_new
+    
+    analyzer2 -> analyzer2 : calculate_tax(new_data)
+    analyzer2 -> analyzer2 : detect_fraud(new_data)
+end
+
+analyzer2 -> analyzer2 : Compare totals\nDetermine better regime\nCalculate savings
+
+analyzer2 --> api2 : RegimeComparison\n{old: {...}, new: {...}, comparison: {...}}
+deactivate analyzer2
+
+api2 --> frontend2 : JSON Response
+deactivate api2
+
+frontend2 -> frontend2 : Render comparison charts\n(Recharts)
+
+frontend2 --> user2 : Display side-by-side\ncomparison with recommendation
+deactivate frontend2
+
+' ==========================================
+' SEQUENCE 3: AI Chatbot Flow
+' ==========================================
+newpage AI Chatbot Conversation Flow
+
+actor User as user3 #LightBlue
+participant "React Frontend\n(ChatbotBubble.jsx)" as frontend3 #LightGreen
+participant "FastAPI\n(main.py)" as api3 #Orange
+participant "TaxChatbotAgent" as chatbot #LightCoral
+participant "Gemini AI\n(gemini-3-flash-preview)" as gemini3 #LightPink
+
+user3 -> frontend3 : Click chatbot bubble
+activate frontend3
+
+frontend3 -> frontend3 : Load previous context\n(from localStorage)
+
+alt Context not set
+    frontend3 -> api3 : POST /chatbot/set-context\n{SetChatContext from localStorage}
+    activate api3
+    api3 -> chatbot : set_user_context(tax_data)
+    activate chatbot
+    chatbot -> chatbot : Store in user_context dict
+    chatbot --> api3 : OK
+    deactivate chatbot
+    api3 --> frontend3 : Context updated
+    deactivate api3
+end
+
+user3 -> frontend3 : Type question\n"How was my tax calculated?"
+
+frontend3 -> api3 : POST /chatbot/chat\n{message: "How was my tax calculated?"}
+activate api3
+
+api3 -> chatbot : chat(user_message)
+activate chatbot
+
+chatbot -> chatbot : get_context_summary()\n(Build user context string)
+
+chatbot -> chatbot : Build system prompt\nwith context + guidelines
+
+chatbot -> chatbot : Append conversation_history\n(last 4 messages)
+
+chatbot -> gemini3 : generate_content_stream(\nmodel, contents, config)
+activate gemini3
+
+loop Streaming Response
+    gemini3 --> chatbot : chunk.text
+    chatbot -> chatbot : Accumulate response
+end
+
+gemini3 --> chatbot : Complete
+deactivate gemini3
+
+chatbot -> chatbot : Update conversation_history\n(user + assistant messages)
+
+chatbot --> api3 : response_text
+deactivate chatbot
+
+api3 --> frontend3 : {bot_response, has_context}
+deactivate api3
+
+frontend3 -> frontend3 : Render with react-markdown
+
+frontend3 --> user3 : Display formatted response
+deactivate frontend3
+
+' ==========================================
+' SEQUENCE 4: Transaction Analysis Flow
+' ==========================================
+newpage Transaction File Analysis Flow
+
+actor User as user4 #LightBlue
+participant "React Frontend\n(TransactionAnalyzer.jsx)" as frontend4 #LightGreen
+participant "FastAPI\n(main.py)" as api4 #Orange
+participant "TransactionAnalyzerAgent" as tx_agent #LightCoral
+participant "Pandas" as pandas #LightYellow
+participant "Gemini AI\n(gemini-2.0-flash-exp)" as gemini4 #LightPink
+
+user4 -> frontend4 : Upload CSV/Excel file
+activate frontend4
+
+frontend4 -> frontend4 : Validate file type\n(.csv, .xlsx, .xls)
+
+frontend4 -> api4 : POST /analyze-transactions\n(multipart/form-data)
+activate api4
+
+api4 -> api4 : Validate file extension
+
+api4 -> api4 : Create temp file\n(tempfile.NamedTemporaryFile)
+
+api4 -> api4 : shutil.copyfileobj()
+
+api4 -> tx_agent : analyze_file(tmp_file_path)
+activate tx_agent
+
+alt CSV File
+    tx_agent -> pandas : pd.read_csv(path)
+else Excel File
+    tx_agent -> pandas : pd.read_excel(path)
+end
+activate pandas
+pandas --> tx_agent : DataFrame
+deactivate pandas
+
+tx_agent -> tx_agent : _clean_dataframe(df)\n- Lowercase columns\n- Parse dates\n- Convert amounts to numeric
+
+tx_agent -> tx_agent : _extract_summary(df)\n- total_transactions\n- date_range\n- total_amount\n- categories
+
+tx_agent -> tx_agent : Build AI prompt\n(summary + sample data)
+
+tx_agent -> gemini4 : generate_content(\nmodel, prompt)
+activate gemini4
+
+gemini4 -> gemini4 : Analyze patterns\nIdentify tax implications\nFind deductible expenses
+
+gemini4 --> tx_agent : Full analysis text
+deactivate gemini4
+
+tx_agent -> tx_agent : _parse_ai_response()\n- quick_insights\n- detailed_analysis\n- tax_implications
+
+tx_agent --> api4 : TransactionAnalysis
+deactivate tx_agent
+
+api4 -> api4 : os.unlink(tmp_file_path)\n(Cleanup)
+
+api4 --> frontend4 : JSON Response
+deactivate api4
+
+frontend4 -> frontend4 : Render analysis sections\nwith react-markdown
+
+frontend4 --> user4 : Display insights,\ntax implications, categories
+deactivate frontend4
+
+' ==========================================
+' SEQUENCE 5: Rule Generation Flow
+' ==========================================
+newpage Tax Rule Generation Flow (Dynamic)
+
+actor Admin as admin #LightBlue
+participant "API Client\n(Postman/curl)" as client #LightGreen
+participant "FastAPI\n(main.py)" as api5 #Orange
+participant "DynamicTaxRule\nGeneratorAgent" as rule_gen #LightCoral
+participant "Government\nWebsites" as gov #LightYellow
+participant "BeautifulSoup" as bs #LightCyan
+participant "Gemini AI\n(with Google Search)" as gemini5 #LightPink
+participant "File System\n(rules/)" as fs #Gray
+
+admin -> client : Trigger rule generation
+activate client
+
+client -> api5 : POST /generate-rules\n?regime=both&financial_year=2024-25
+activate api5
+
+loop For each regime ["old", "new"]
+    api5 -> rule_gen : generate_dynamic_rules(regime, FY)
+    activate rule_gen
+    
+    group Crawl Government Sources
+        rule_gen -> gov : GET /tax-slabs
+        activate gov
+        gov --> rule_gen : HTML Content
+        deactivate gov
+        
+        rule_gen -> bs : BeautifulSoup(html)
+        activate bs
+        bs -> bs : Remove scripts, styles
+        bs --> rule_gen : Clean text
+        deactivate bs
+        
+        rule_gen -> gov : GET /deductions
+        activate gov
+        gov --> rule_gen : HTML Content
+        deactivate gov
+        
+        rule_gen -> bs : BeautifulSoup(html)
+        activate bs
+        bs --> rule_gen : Clean text
+        deactivate bs
+    end
+    
+    group AI Extraction with Grounding
+        rule_gen -> rule_gen : Build extraction prompt\n(regime, FY, content)
+        
+        rule_gen -> gemini5 : generate_content_stream(\nconfig with GoogleSearch tool,\nthinking_level=HIGH)
+        activate gemini5
+        
+        gemini5 -> gemini5 : Reason about content
+        gemini5 -> gemini5 : Use Google Search\nfor verification
+        gemini5 -> gemini5 : Extract structured data
+        
+        gemini5 --> rule_gen : JSON with tax rules
+        deactivate gemini5
+    end
+    
+    rule_gen -> rule_gen : Validate & clean JSON
+    
+    rule_gen -> fs : Write to rules/india_tax_{FY}_{regime}.json
+    activate fs
+    fs --> rule_gen : OK
+    deactivate fs
+    
+    rule_gen --> api5 : RuleData\n{slabs_count, deductions_count}
+    deactivate rule_gen
+end
+
+api5 --> client : {status: "success",\ngenerated: [...]}
+deactivate api5
+
+client --> admin : Rules generated successfully
+deactivate client
+
+' ==========================================
+' SEQUENCE 6: Report Generation Flow
+' ==========================================
+newpage Report Generation Flow
+
+actor User as user6 #LightBlue
+participant "React Frontend\n(Reports.jsx)" as frontend6 #LightGreen
+participant "FastAPI\n(main.py)" as api6 #Orange
+participant "TaxAnalyzerAgent" as analyzer6 #LightCoral
+participant "Rules JSON" as rules6 #LightYellow
+
+user6 -> frontend6 : Click "Generate Report"
+activate frontend6
+
+frontend6 -> frontend6 : Load data from localStorage
+
+frontend6 -> api6 : POST /generate-report\n{UserFinancialData}
+activate api6
+
+api6 -> analyzer6 : generate_report(user_data, regime)
+activate analyzer6
+
+analyzer6 -> rules6 : load_rules(regime, FY)
+activate rules6
+rules6 --> analyzer6 : TaxRuleSet
+deactivate rules6
+
+analyzer6 -> analyzer6 : calculate_tax(user_data)
+analyzer6 -> analyzer6 : detect_fraud()
+
+analyzer6 -> analyzer6 : Format text report\n┌──────────────────────────────┐\n│ TAX ANALYSIS REPORT          │\n│ FY: 2024-25 | Regime: OLD    │\n├──────────────────────────────┤\n│ INCOME DETAILS               │\n│ Gross Income: ₹X,XX,XXX      │\n│ ...                          │\n└──────────────────────────────┘
+
+analyzer6 --> api6 : report_text (formatted)
+deactivate analyzer6
+
+api6 --> frontend6 : {report: "..."}
+deactivate api6
+
+frontend6 -> frontend6 : Display in <pre> tag
+
+frontend6 -> frontend6 : Create download blob
+
+frontend6 --> user6 : Show report with\ndownload button
+deactivate frontend6
+
+user6 -> frontend6 : Click "Download"
+activate frontend6
+frontend6 -> frontend6 : Blob download\n(tax_report.txt)
+frontend6 --> user6 : File downloaded
+deactivate frontend6
+
+' ==========================================
+' SEQUENCE 7: Authentication Flow
+' ==========================================
+newpage Google OAuth Authentication Flow
+
+actor User as user7 #LightBlue
+participant "React Frontend\n(Login.jsx)" as frontend7 #LightGreen
+participant "Google OAuth\n(@react-oauth/google)" as oauth #Orange
+participant "Google Auth\nServers" as google #LightPink
+participant "AuthContext" as auth_ctx #LightCoral
+participant "LocalStorage" as storage #LightYellow
+
+user7 -> frontend7 : Navigate to /login
+activate frontend7
+
+alt Google OAuth Flow
+    user7 -> frontend7 : Click "Sign in with Google"
+    
+    frontend7 -> oauth : GoogleLogin component
+    activate oauth
+    
+    oauth -> google : Redirect to Google
+    activate google
+    
+    google -> google : User authenticates
+    
+    google --> oauth : credential (JWT)
+    deactivate google
+    
+    oauth --> frontend7 : onSuccess(credentialResponse)
+    deactivate oauth
+    
+    frontend7 -> frontend7 : jwt_decode(credential)
+    
+    frontend7 -> auth_ctx : login(userData)
+    activate auth_ctx
+    
+    auth_ctx -> storage : setItem("user", JSON)
+    activate storage
+    storage --> auth_ctx : OK
+    deactivate storage
+    
+    auth_ctx --> frontend7 : User logged in
+    deactivate auth_ctx
+    
+else Development Mode
+    user7 -> frontend7 : Click "Continue as Developer"
+    
+    frontend7 -> auth_ctx : login(devUser)
+    activate auth_ctx
+    
+    auth_ctx -> auth_ctx : Create mock user\n{name: "Developer", email: "dev@test.com"}
+    
+    auth_ctx -> storage : setItem("user", JSON)
+    activate storage
+    storage --> auth_ctx : OK
+    deactivate storage
+    
+    auth_ctx --> frontend7 : Dev user logged in
+    deactivate auth_ctx
+end
+
+frontend7 -> frontend7 : navigate("/dashboard")
+
+frontend7 --> user7 : Redirect to Dashboard
+deactivate frontend7
+
+@enduml

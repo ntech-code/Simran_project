@@ -1,0 +1,28 @@
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+yarn.lock
+
+# Development
+.env.local
+.env.development
+.env.test
+
+# Build
+dist
+build
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*.swn
+
+# Misc
+.DS_Store
+*.log
+.git
+.gitignore
+README.md

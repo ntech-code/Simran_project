@@ -1,0 +1,318 @@
+@startuml Indian Tax Analysis System - Agent State Machine
+
+!theme cerulean
+skinparam stateAttributeIconSize 0
+
+title Indian Tax Analysis System - Agent State Machine Diagrams\n(Behavioral Models for Each Agent)
+
+' ==========================================
+' STATE MACHINE 1: TaxAnalyzerAgent
+' ==========================================
+newpage TaxAnalyzerAgent State Machine
+
+state "TaxAnalyzerAgent Lifecycle" as tax_agent {
+    
+    [*] --> Uninitialized
+    
+    state "Uninitialized" as ta_uninit : No API key\nNo rules loaded
+    
+    state "Initialized" as ta_init : API key validated\nGemini client ready
+    
+    state "RulesLoaded" as ta_rules {
+        state "OldRegime" as ta_old : FY 2024-25 Old rules
+        state "NewRegime" as ta_new : FY 2024-25 New rules
+        
+        ta_old --> ta_new : load_rules("new")
+        ta_new --> ta_old : load_rules("old")
+    }
+    
+    state "Calculating" as ta_calc {
+        state "ComputeDeductions" as ta_ded : Sum all valid deductions
+        state "ComputeSlabTax" as ta_slab : Apply slab rates
+        state "ApplyRebate" as ta_rebate : Section 87A check
+        state "ApplySurcharge" as ta_sur : Income > 50L check
+        state "ApplyCess" as ta_cess : 4% H&E Cess
+        
+        [*] --> ta_ded
+        ta_ded --> ta_slab
+        ta_slab --> ta_rebate
+        ta_rebate --> ta_sur
+        ta_sur --> ta_cess
+        ta_cess --> [*]
+    }
+    
+    state "DetectingFraud" as ta_fraud {
+        state "CheckDeductionRatio" as fr_ratio : ratio > 50%?
+        state "CheckMaxLimits" as fr_max : Claims at max?
+        state "CheckRegimeValidity" as fr_regime : Invalid deductions?
+        state "CheckIncomePattern" as fr_income : Income change > 50%?
+        state "CalculateRiskScore" as fr_score : Accumulate flags
+        
+        [*] --> fr_ratio
+        fr_ratio --> fr_max
+        fr_max --> fr_regime
+        fr_regime --> fr_income
+        fr_income --> fr_score
+        fr_score --> [*]
+    }
+    
+    state "ComparingRegimes" as ta_compare : Calculate both\nDetermine better
+    
+    state "GeneratingReport" as ta_report : Build formatted\ntext report
+    
+    ta_uninit --> ta_init : __init__(api_key)
+    ta_init --> ta_rules : load_rules(regime, FY)
+    ta_rules --> ta_calc : calculate_tax(data)
+    ta_calc --> ta_fraud : detect_fraud(data, result)
+    ta_rules --> ta_compare : compare_regimes(data)
+    ta_rules --> ta_report : generate_report(data, regime)
+    
+    ta_calc --> ta_rules : Return result
+    ta_fraud --> ta_rules : Return analysis
+    ta_compare --> ta_rules : Return comparison
+    ta_report --> ta_rules : Return report string
+}
+
+' ==========================================
+' STATE MACHINE 2: TaxChatbotAgent
+' ==========================================
+newpage TaxChatbotAgent State Machine
+
+state "TaxChatbotAgent Lifecycle" as chat_agent {
+    
+    [*] --> ChatUninitialized
+    
+    state "ChatUninitialized" as cb_uninit : No API key
+    
+    state "Initialized" as cb_init {
+        state "NoContext" as cb_no_ctx : user_context = {}\nconversation_history = []
+        state "HasContext" as cb_has_ctx : user_context populated\nUser details known
+        
+        cb_no_ctx --> cb_has_ctx : set_user_context(data)
+        cb_has_ctx --> cb_no_ctx : clear_context()
+    }
+    
+    state "Processing" as cb_process {
+        
+        state "BuildingPrompt" as cb_prompt {
+            state "GetContextSummary" as cb_summary : Format user data
+            state "BuildSystemPrompt" as cb_system : Add guidelines
+            state "AppendHistory" as cb_history : Last 4 messages
+            
+            [*] --> cb_summary
+            cb_summary --> cb_system
+            cb_system --> cb_history
+            cb_history --> [*]
+        }
+        
+        state "CallingGemini" as cb_gemini : generate_content_stream()
+        
+        state "Streaming" as cb_stream {
+            state "ReceiveChunk" as cb_chunk : chunk.text
+            state "Accumulate" as cb_accum : response_text += chunk
+            
+            [*] --> cb_chunk
+            cb_chunk --> cb_accum
+            cb_accum --> cb_chunk : More chunks
+            cb_accum --> [*] : Complete
+        }
+        
+        state "UpdatingHistory" as cb_update : Append user + assistant
+        
+        [*] --> cb_prompt
+        cb_prompt --> cb_gemini
+        cb_gemini --> cb_stream
+        cb_stream --> cb_update
+        cb_update --> [*]
+    }
+    
+    state "GeneratingSuggestions" as cb_suggest : AI-powered\npersonalized tips
+    
+    cb_uninit --> cb_init : __init__(api_key)
+    cb_init --> cb_process : chat(message)
+    cb_process --> cb_init : Return response
+    cb_init --> cb_suggest : get_personalized_suggestions()
+    cb_suggest --> cb_init : Return List[str]
+}
+
+' ==========================================
+' STATE MACHINE 3: TransactionAnalyzerAgent
+' ==========================================
+newpage TransactionAnalyzerAgent State Machine
+
+state "TransactionAnalyzerAgent Lifecycle" as tx_agent {
+    
+    [*] --> TxUninitialized
+    
+    state "TxUninitialized" as tx_uninit : No client
+    
+    state "Ready" as tx_ready : Gemini client ready\nModel: gemini-2.0-flash-exp
+    
+    state "AnalyzingFile" as tx_analyze {
+        
+        state "ReadingFile" as tx_read {
+            state "DetectFormat" as tx_format : CSV or Excel?
+            state "ReadCSV" as tx_csv : pd.read_csv()
+            state "ReadExcel" as tx_excel : pd.read_excel()
+            
+            [*] --> tx_format
+            tx_format --> tx_csv : .csv
+            tx_format --> tx_excel : .xlsx/.xls
+            tx_csv --> [*]
+            tx_excel --> [*]
+        }
+        
+        state "CleaningData" as tx_clean {
+            state "LowercaseColumns" as tx_lower : col.lower()
+            state "ParseDates" as tx_dates : to_datetime()
+            state "ConvertAmounts" as tx_amounts : to_numeric()
+            
+            [*] --> tx_lower
+            tx_lower --> tx_dates
+            tx_dates --> tx_amounts
+            tx_amounts --> [*]
+        }
+        
+        state "ExtractingSummary" as tx_summary : Count, range,\ntotal, categories
+        
+        state "AIAnalysis" as tx_ai {
+            state "BuildPrompt" as tx_prompt : Include sample data
+            state "CallGemini" as tx_call : generate_content()
+            state "ParseResponse" as tx_parse : Split into sections
+            
+            [*] --> tx_prompt
+            tx_prompt --> tx_call
+            tx_call --> tx_parse
+            tx_parse --> [*]
+        }
+        
+        state "BuildResult" as tx_result : Combine all data
+        
+        [*] --> tx_read
+        tx_read --> tx_clean
+        tx_clean --> tx_summary
+        tx_summary --> tx_ai
+        tx_ai --> tx_result
+        tx_result --> [*]
+    }
+    
+    tx_uninit --> tx_ready : __init__()
+    tx_ready --> tx_analyze : analyze_file(path)
+    tx_analyze --> tx_ready : Return Dict
+}
+
+' ==========================================
+' STATE MACHINE 4: TaxRuleGeneratorAgent
+' ==========================================
+newpage TaxRuleGeneratorAgent State Machine
+
+state "RuleGeneratorAgent Lifecycle" as rule_agent {
+    
+    [*] --> RuleUninitialized
+    
+    state "RuleUninitialized" as rg_uninit : No API key
+    
+    state "Initialized" as rg_init : API key validated\nTrusted domains set
+    
+    state "GeneratingRules" as rg_gen {
+        
+        state "ValidatingSource" as rg_validate : is_trusted_source(url)
+        
+        state "FetchingContent" as rg_fetch {
+            state "HTTPRequest" as rg_http : requests.get()
+            state "ParseHTML" as rg_parse : BeautifulSoup
+            state "CleanText" as rg_clean : Remove scripts
+            
+            [*] --> rg_http
+            rg_http --> rg_parse
+            rg_parse --> rg_clean
+            rg_clean --> [*]
+        }
+        
+        state "ExtractingWithAI" as rg_extract {
+            state "BuildExtractionPrompt" as rg_prompt : JSON structure
+            state "CallGemini" as rg_call : Stream response
+            state "ParseJSON" as rg_json : Clean & parse
+            
+            [*] --> rg_prompt
+            rg_prompt --> rg_call
+            rg_call --> rg_json
+            rg_json --> [*]
+        }
+        
+        state "UsingFallback" as rg_fallback : _get_old_regime_rules()\n_get_new_regime_rules()
+        
+        state "SavingRules" as rg_save : Write to rules/
+        
+        [*] --> rg_validate
+        rg_validate --> rg_fetch : Trusted
+        rg_validate --> rg_fallback : Not trusted
+        rg_fetch --> rg_extract
+        rg_fallback --> rg_save
+        rg_extract --> rg_save : Success
+        rg_extract --> rg_fallback : Failure
+        rg_save --> [*]
+    }
+    
+    rg_uninit --> rg_init : __init__(api_key)
+    rg_init --> rg_gen : generate_rule_file(regime, FY)
+    rg_gen --> rg_init : Return Dict
+}
+
+' ==========================================
+' STATE MACHINE 5: DynamicTaxRuleGeneratorAgent
+' ==========================================
+newpage DynamicTaxRuleGeneratorAgent State Machine
+
+state "DynamicRuleGeneratorAgent Lifecycle" as dyn_agent {
+    
+    [*] --> DynUninitialized
+    
+    state "DynUninitialized" as dyn_uninit : No API key
+    
+    state "Initialized" as dyn_init : API key validated\nGoogle Search enabled
+    
+    state "GeneratingDynamicRules" as dyn_gen {
+        
+        state "CrawlingMultipleSources" as dyn_crawl {
+            state "FetchTaxSlabs" as dyn_slabs : Crawl slab URLs
+            state "FetchDeductions" as dyn_ded : Crawl deduction URLs
+            state "CombineContent" as dyn_combine : Merge all text
+            
+            [*] --> dyn_slabs
+            dyn_slabs --> dyn_ded
+            dyn_ded --> dyn_combine
+            dyn_combine --> [*]
+        }
+        
+        state "LiveExtraction" as dyn_extract {
+            state "BuildDynamicPrompt" as dyn_prompt : Include all content
+            state "ConfigureGemini" as dyn_config : thinking_level=HIGH\nGoogleSearch tool
+            state "StreamResponse" as dyn_stream : generate_content_stream()
+            state "ValidateJSON" as dyn_json : Parse & validate
+            
+            [*] --> dyn_prompt
+            dyn_prompt --> dyn_config
+            dyn_config --> dyn_stream
+            dyn_stream --> dyn_json
+            dyn_json --> [*]
+        }
+        
+        state "GoogleSearchGrounding" as dyn_search : Verify with\nreal-time search
+        
+        state "SaveDynamicRules" as dyn_save : Write _dynamic.json
+        
+        [*] --> dyn_crawl
+        dyn_crawl --> dyn_extract
+        dyn_extract --> dyn_search : If needed
+        dyn_search --> dyn_extract
+        dyn_extract --> dyn_save
+        dyn_save --> [*]
+    }
+    
+    dyn_uninit --> dyn_init : __init__(api_key)
+    dyn_init --> dyn_gen : generate_dynamic_rules(regime, FY)
+    dyn_gen --> dyn_init : Return Dict
+}
+
+@enduml
