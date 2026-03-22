@@ -1,16 +1,12 @@
 services:
   backend:
     build: .
-    image: tax-analysis-backend:latest
-    container_name: tax-analysis-backend
+    container_name: tax-backend
     ports:
       - "8000:8000"
-    environment:
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
     env_file:
       - .env
     volumes:
-      - ./data:/app/data
       - ./rules:/app/rules
       - ./schemas:/app/schemas
     restart: unless-stopped
@@ -18,10 +14,10 @@ services:
       - tax-network
 
   frontend:
-    image: tax-analysis-frontend:latest
-    container_name: tax-analysis-frontend
+    build: ./frontend
+    container_name: tax-frontend
     ports:
-      - "80:80"
+      - "3000:80"
     depends_on:
       - backend
     restart: unless-stopped

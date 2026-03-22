@@ -14,17 +14,17 @@ RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements file
-COPY /requirements.txt .
+# Copy requirements file first (for Docker layer caching)
+COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the entire project
-COPY .. /app
+COPY . .
 
-# Expose the port the app runs on
+# Expose the port
 EXPOSE 8000
 
-# Command to run the application
+# Start the backend server
 CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
