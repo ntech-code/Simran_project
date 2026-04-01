@@ -115,19 +115,16 @@ async def analyze_statements(
             "message": "One or more documents are locked. Please provide valid passwords for the specific files below."
         }
 
-    # Extraction Pass
     combined_text = ""
+    import pdfplumber
     for filename, contents in file_contents.items():
         combined_text += f"\n--- START OF DOCUMENT: {filename} ---\n"
         try:
-            pdf_reader = PyPDF2.PdfReader(io.BytesIO(contents))
-            if pdf_reader.is_encrypted:
-                pdf_reader.decrypt(password_dict.get(filename))
-                
-            for page in pdf_reader.pages:
-                text = page.extract_text()
-                if text:
-                    combined_text += text + "\n"
+            with pdfplumber.open(io.BytesIO(contents), password=password_dict.get(filename, '')) as pdf:
+                for page in pdf.pages:
+                    text = page.extract_text()
+                    if text:
+                        combined_text += text + "\n"
         except Exception as e:
             combined_text += f"[Failed to extract text from {filename}: {str(e)}]\n"
         combined_text += f"\n--- END OF DOCUMENT: {filename} ---\n"
@@ -331,20 +328,18 @@ async def extract_tax_documents(
 
     try:
         combined_text = ""
+        import pdfplumber
         
         for filename, content in file_contents.items():
             combined_text += f"\n\n--- UPLOADED DOCUMENT: {filename} ---\n"
             
             if filename.lower().endswith(".pdf"):
                 try:
-                    pdf_reader = PyPDF2.PdfReader(io.BytesIO(content))
-                    if pdf_reader.is_encrypted:
-                        pdf_reader.decrypt(password_dict.get(filename))
-                        
-                    for page in pdf_reader.pages:
-                        extracted = page.extract_text()
-                        if extracted:
-                            combined_text += extracted + "\n"
+                    with pdfplumber.open(io.BytesIO(content), password=password_dict.get(filename, '')) as pdf:
+                        for page in pdf.pages:
+                            extracted = page.extract_text()
+                            if extracted:
+                                combined_text += extracted + "\n"
                 except Exception as pdf_err:
                     combined_text += f"[Failed to parse PDF: {pdf_err}]"
             elif filename.lower().endswith((".csv", ".txt")):
