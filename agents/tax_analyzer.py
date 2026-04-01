@@ -28,17 +28,16 @@ class TaxAnalyzerAgent:
 
     def __init__(self, api_key: Optional[str] = None):
         """Initialize the analyzer agent"""
-        self.api_key = api_key or os.getenv('GEMINI_API_KEY')
-        if not self.api_key:
-            raise ValueError("GEMINI_API_KEY not found")
-
-        self.client = genai.Client(api_key=self.api_key)
-        self.model = "gemini-3-flash-preview"
+        from agents.genai_client import get_genai_client, get_model_name
+        self.client = get_genai_client()
+        if not self.client:
+            raise ValueError("No AI credentials found (Vertex AI or Gemini API key)")
+        self.model = get_model_name()
 
         self.rules = {}
         print("✓ TaxAnalyzerAgent initialized")
 
-    def load_rules(self, regime: str, financial_year: str = "2024-25") -> bool:
+    def load_rules(self, regime: str, financial_year: str = "2025-26") -> bool:
         """Load tax rules from JSON file"""
         try:
             fy_formatted = financial_year.replace('-', '_')
@@ -58,7 +57,14 @@ class TaxAnalyzerAgent:
             return False
 
     def calculate_tax(self, user_data: Dict) -> Dict:
-        """Calculate tax based on user financial data"""
+        """
+        Calculate tax based on user financial data.
+        Implements:
+        - Standard slab-based tax calculation
+        - Section 87A rebate with MARGINAL RELIEF
+        - Surcharge with MARGINAL RELIEF
+        - Health & Education Cess (4%)
+        """
 
         if not self.rules:
             return {"error": "Tax rules not loaded"}
@@ -76,18 +82,50 @@ class TaxAnalyzerAgent:
             # Calculate tax from slabs
             tax_from_slabs = self._calculate_slab_tax(taxable_income)
 
-            # Apply rebate
-            rebate = self._calculate_rebate(taxable_income, tax_from_slabs)
+            # ===== SECTION 87A REBATE WITH MARGINAL RELIEF =====
+            # If taxable income ≤ threshold: full rebate (tax = 0)
+            # If taxable income slightly > threshold: apply marginal relief
+            #   → Tax cannot exceed the amount by which income exceeds the threshold
+            rebate = 0
+            marginal_relief_87a = 0
+            tax_after_rebate = tax_from_slabs
 
-            # Calculate surcharge
-            surcharge = self._calculate_surcharge(taxable_income, tax_from_slabs - rebate)
+            for rebate_rule in self.rules.get('rebates', []):
+                threshold = rebate_rule['income_threshold']
+                max_rebate = rebate_rule['max_rebate']
 
-            # Calculate cess
+                if taxable_income <= threshold:
+                    # Full rebate — tax becomes 0
+                    rebate = min(tax_from_slabs, max_rebate)
+                    tax_after_rebate = tax_from_slabs - rebate
+                else:
+                    # Income exceeds threshold — no rebate normally
+                    # But apply MARGINAL RELIEF:
+                    # Tax payable should not exceed (income - threshold)
+                    excess_income = taxable_income - threshold
+                    normal_tax = tax_from_slabs  # tax without any rebate
+
+                    if normal_tax > excess_income:
+                        # Marginal relief applies!
+                        marginal_relief_87a = normal_tax - excess_income
+                        rebate = marginal_relief_87a  # treat marginal relief as rebate
+                        tax_after_rebate = excess_income
+                    else:
+                        # Normal tax is already less than excess, no relief needed
+                        tax_after_rebate = normal_tax
+                break  # Only first matching rebate rule applies
+
+            # ===== SURCHARGE WITH MARGINAL RELIEF =====
+            surcharge = self._calculate_surcharge_with_marginal_relief(
+                taxable_income, tax_after_rebate
+            )
+
+            # ===== HEALTH & EDUCATION CESS (4%) =====
             cess_rate = self.rules['cess']['rate'] / 100
-            cess = (tax_from_slabs - rebate + surcharge) * cess_rate
+            cess = (tax_after_rebate + surcharge) * cess_rate
 
             # Total tax
-            total_tax = tax_from_slabs - rebate + surcharge + cess
+            total_tax = max(0, tax_after_rebate + surcharge + cess)
 
             result = {
                 "gross_income": gross_income,
@@ -96,6 +134,7 @@ class TaxAnalyzerAgent:
                 "tax_breakdown": {
                     "tax_from_slabs": round(tax_from_slabs, 2),
                     "rebate": round(rebate, 2),
+                    "marginal_relief_87a": round(marginal_relief_87a, 2),
                     "surcharge": round(surcharge, 2),
                     "cess": round(cess, 2)
                 },
@@ -157,8 +196,84 @@ class TaxAnalyzerAgent:
 
         return 0
 
+    def _calculate_surcharge_with_marginal_relief(self, taxable_income: float, tax_after_rebate: float) -> float:
+        """
+        Calculate surcharge with MARGINAL RELIEF.
+        
+        Marginal relief ensures that when income slightly crosses a surcharge 
+        threshold, the taxpayer doesn't pay more in total tax (including surcharge)
+        than the tax at the threshold + the excess income.
+        
+        Example: If threshold is ₹50L and income is ₹51L:
+        - Tax+surcharge at ₹51L should not exceed Tax at ₹50L + ₹1L
+        """
+        surcharges = self.rules.get('surcharges', [])
+        if not surcharges:
+            return 0
+
+        # Find current surcharge rate
+        current_rate = 0
+        for sc in surcharges:
+            min_inc = sc['min_income']
+            max_inc = sc['max_income']
+            rate = sc['rate'] / 100
+
+            if max_inc is None:
+                if taxable_income > min_inc:
+                    current_rate = rate
+            else:
+                if min_inc <= taxable_income <= max_inc:
+                    current_rate = rate
+
+        if current_rate == 0:
+            return 0
+
+        # Calculate normal surcharge
+        normal_surcharge = tax_after_rebate * current_rate
+
+        # Find the threshold that was just crossed
+        # Sort surcharge slabs by min_income to find boundaries
+        thresholds = sorted(set(sc['min_income'] for sc in surcharges if sc['min_income'] > 0))
+        
+        for threshold in thresholds:
+            if taxable_income > threshold:
+                # Find the surcharge rate BELOW this threshold
+                prev_rate = 0
+                for sc in surcharges:
+                    min_inc = sc['min_income']
+                    max_inc = sc['max_income']
+                    if max_inc is not None and max_inc <= threshold:
+                        prev_rate = sc['rate'] / 100
+                    elif min_inc < threshold and (max_inc is None or max_inc >= threshold):
+                        prev_rate = 0  # rate at threshold boundary may be the one below
+                        for sc2 in surcharges:
+                            if sc2['max_income'] is not None and sc2['max_income'] == threshold:
+                                prev_rate = sc2['rate'] / 100
+                                break
+
+                # Tax at the threshold (just below)
+                tax_at_threshold = self._calculate_slab_tax(threshold)
+                surcharge_at_threshold = tax_at_threshold * prev_rate
+                total_at_threshold = tax_at_threshold + surcharge_at_threshold
+
+                # Total with current surcharge
+                total_with_surcharge = tax_after_rebate + normal_surcharge
+
+                # Excess income over this threshold
+                excess_income = taxable_income - threshold
+
+                # Maximum total tax = tax at threshold + excess income
+                max_total = total_at_threshold + excess_income
+
+                if total_with_surcharge > max_total:
+                    # Marginal relief applies
+                    marginal_surcharge = max_total - tax_after_rebate
+                    return max(0, marginal_surcharge)
+
+        return normal_surcharge
+
     def _calculate_surcharge(self, taxable_income: float, tax_before_surcharge: float) -> float:
-        """Calculate surcharge"""
+        """Legacy surcharge calculation (without marginal relief)"""
         for surcharge in self.rules['surcharges']:
             min_inc = surcharge['min_income']
             max_inc = surcharge['max_income']
@@ -287,19 +402,27 @@ class TaxAnalyzerAgent:
 
         return recommendations
 
-    def compare_regimes(self, user_data: Dict) -> Dict:
+    def compare_regimes(self, old_data: Dict, new_data: Dict, financial_year: str = "2025-26") -> Dict:
         """Compare tax in both old and new regimes"""
         results = {}
 
-        for regime in ['old', 'new']:
-            self.load_rules(regime)
-            tax_result = self.calculate_tax(user_data)
-            fraud_result = self.detect_fraud(user_data, tax_result)
+        # Calculate Old Regime
+        self.load_rules('old', financial_year)
+        old_tax_result = self.calculate_tax(old_data)
+        old_fraud_result = self.detect_fraud(old_data, old_tax_result)
+        results['old'] = {
+            "tax_calculation": old_tax_result,
+            "fraud_analysis": old_fraud_result
+        }
 
-            results[regime] = {
-                "tax_calculation": tax_result,
-                "fraud_analysis": fraud_result
-            }
+        # Calculate New Regime
+        self.load_rules('new', financial_year)
+        new_tax_result = self.calculate_tax(new_data)
+        new_fraud_result = self.detect_fraud(new_data, new_tax_result)
+        results['new'] = {
+            "tax_calculation": new_tax_result,
+            "fraud_analysis": new_fraud_result
+        }
 
         # Determine better regime
         old_tax = results['old']['tax_calculation'].get('total_tax', float('inf'))

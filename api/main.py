@@ -19,6 +19,12 @@ from agents.transaction_analyzer import TransactionAnalyzerAgent
 import shutil
 import tempfile
 
+# DB and Routers
+from api.database import engine, Base, SessionLocal
+from api.models import User
+from api.routers import auth, admin, analytics, news, game
+from api.utils.auth import get_password_hash
+
 # Fix Windows console encoding
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
@@ -45,13 +51,43 @@ rule_generator_agent = TaxRuleGeneratorAgent()
 chatbot_agent = TaxChatbotAgent()
 transaction_analyzer_agent = TransactionAnalyzerAgent()
 
+# Create DB Tables and seed Admin user
+Base.metadata.create_all(bind=engine)
+
+def seed_admin_user():
+    db = SessionLocal()
+    try:
+        admin_email = "admin@tax.com"
+        admin_user = db.query(User).filter(User.email == admin_email).first()
+        if not admin_user:
+            print(f"Seeding default admin user: {admin_email}")
+            user = User(
+                email=admin_email,
+                name="System Admin",
+                hashed_password=get_password_hash("admin123"),
+                is_admin=True
+            )
+            db.add(user)
+            db.commit()
+    finally:
+        db.close()
+
+seed_admin_user()
+
+# Include routers
+app.include_router(auth.router)
+app.include_router(admin.router)
+app.include_router(analytics.router)
+app.include_router(news.router)
+app.include_router(game.router)
+
 
 # Pydantic models
 class UserFinancialData(BaseModel):
     """User financial input model"""
-    gross_income: float = Field(..., gt=0, description="Annual gross income")
+    gross_income: float = Field(..., ge=0, description="Annual gross income")
     regime: str = Field(..., pattern="^(old|new)$", description="Tax regime: old or new")
-    financial_year: str = Field(default="2024-25", description="Financial year")
+    financial_year: str = Field(default="2025-26", description="Financial year")
     deductions: Dict[str, float] = Field(default={}, description="Deductions claimed by section")
     previous_year_income: Optional[float] = Field(default=None, description="Previous year income for fraud detection")
 
@@ -60,7 +96,7 @@ class UserFinancialData(BaseModel):
             "example": {
                 "gross_income": 1200000,
                 "regime": "old",
-                "financial_year": "2024-25",
+                "financial_year": "2025-26",
                 "deductions": {
                     "80C": 150000,
                     "80D": 25000,
@@ -73,8 +109,8 @@ class UserFinancialData(BaseModel):
 
 class CompareRegimesData(BaseModel):
     """Input for regime comparison"""
-    gross_income: float = Field(..., gt=0)
-    financial_year: str = Field(default="2024-25")
+    gross_income: float = Field(..., ge=0)
+    financial_year: str = Field(default="2025-26")
     deductions_old: Dict[str, float] = Field(default={}, description="Deductions for old regime")
     deductions_new: Dict[str, float] = Field(default={}, description="Deductions for new regime")
     previous_year_income: Optional[float] = Field(default=None)
@@ -82,7 +118,7 @@ class CompareRegimesData(BaseModel):
 
 class SimulationData(BaseModel):
     """Simulation scenario input"""
-    base_income: float = Field(..., gt=0)
+    base_income: float = Field(..., ge=0)
     income_increments: list[float] = Field(..., description="Income levels to simulate")
     regime: str = Field(..., pattern="^(old|new)$")
     deductions: Dict[str, float] = Field(default={})
@@ -102,7 +138,7 @@ async def root():
 
 
 @app.get("/rules/current")
-async def get_current_rules(regime: str = "old", financial_year: str = "2024-25"):
+async def get_current_rules(regime: str = "old", financial_year: str = "2025-26"):
     """
     Get current tax rules for specified regime and financial year
 
@@ -198,8 +234,8 @@ async def compare_regimes(data: CompareRegimesData):
             "previous_year_income": data.previous_year_income or data.gross_income
         }
 
-        # Compare using agent
-        comparison = analyzer_agent.compare_regimes(old_data)
+        # Compare using agent — pass both data dicts and financial_year
+        comparison = analyzer_agent.compare_regimes(old_data, new_data, data.financial_year)
 
         return {
             "status": "success",
@@ -277,7 +313,7 @@ async def simulate_scenario(sim_data: SimulationData):
 
 
 @app.post("/generate-rules")
-async def generate_rules(regime: str = "both", financial_year: str = "2024-25"):
+async def generate_rules(regime: str = "both", financial_year: str = "2025-26"):
     """
     Trigger tax rule generation
 

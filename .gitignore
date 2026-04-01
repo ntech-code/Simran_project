@@ -91,3 +91,7 @@ coverage/
 # Misc
 .cache/
 .parcel-cache/
+
+# Database and Sensitive Keys
+users.db
+vertex_ai_key.json

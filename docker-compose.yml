@@ -1,29 +1,24 @@
+version: '3.8'
+
 services:
   backend:
-    build: .
-    container_name: tax-backend
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
     ports:
       - "8000:8000"
     env_file:
       - .env
     volumes:
-      - ./rules:/app/rules
-      - ./schemas:/app/schemas
-    restart: unless-stopped
-    networks:
-      - tax-network
+      - ./users.db:/app/users.db
+    restart: always
 
   frontend:
-    build: ./frontend
-    container_name: tax-frontend
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
     ports:
-      - "3000:80"
+      - "3000:3000"
     depends_on:
       - backend
-    restart: unless-stopped
-    networks:
-      - tax-network
-
-networks:
-  tax-network:
-    driver: bridge
+    restart: always

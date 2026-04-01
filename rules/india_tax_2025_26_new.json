@@ -1,0 +1,65 @@
+{
+  "regime": "new",
+  "financial_year": "2025-26",
+  "slabs": [
+    {"min_income": 0, "max_income": 400000, "rate": 0},
+    {"min_income": 400000, "max_income": 800000, "rate": 5},
+    {"min_income": 800000, "max_income": 1200000, "rate": 10},
+    {"min_income": 1200000, "max_income": 1600000, "rate": 15},
+    {"min_income": 1600000, "max_income": 2000000, "rate": 20},
+    {"min_income": 2000000, "max_income": 2400000, "rate": 25},
+    {"min_income": 2400000, "max_income": null, "rate": 30}
+  ],
+  "deductions": [
+    {
+      "section": "80CCD(2)",
+      "name": "Employer's contribution to NPS",
+      "description": "Employer's contribution to National Pension Scheme (up to 14% of salary for central govt, 10% for others)",
+      "max_limit": 0,
+      "applicable_regime": ["new"],
+      "note": "Up to 14% of salary (Basic + DA) for Central Govt employees, 10% for others"
+    },
+    {
+      "section": "Standard Deduction",
+      "name": "Standard Deduction",
+      "description": "Flat deduction from salary income (enhanced in Budget 2024)",
+      "max_limit": 75000,
+      "applicable_regime": ["new"]
+    }
+  ],
+  "rebates": [
+    {
+      "section": "87A",
+      "name": "Rebate under section 87A",
+      "max_rebate": 60000,
+      "income_threshold": 1200000,
+      "applicable_regime": ["new"],
+      "note": "Effectively makes income up to ₹12 Lakh tax-free (₹12.75 Lakh for salaried with Standard Deduction)"
+    }
+  ],
+  "surcharges": [
+    {"min_income": 0, "max_income": 5000000, "rate": 0},
+    {"min_income": 5000000, "max_income": 10000000, "rate": 10},
+    {"min_income": 10000000, "max_income": 20000000, "rate": 15},
+    {"min_income": 20000000, "max_income": 50000000, "rate": 25},
+    {"min_income": 50000000, "max_income": null, "rate": 25}
+  ],
+  "cess": {
+    "rate": 4,
+    "name": "Health and Education Cess"
+  },
+  "source_urls": [
+    "https://www.incometax.gov.in/iec/foportal/",
+    "https://incometaxindia.gov.in/",
+    "https://ddnews.gov.in/",
+    "https://www.cleartax.in/"
+  ],
+  "budget_highlights": [
+    "No tax for income up to ₹4 Lakh (raised from ₹3 Lakh)",
+    "Section 87A rebate increased to ₹60,000 (from ₹25,000), making income up to ₹12 Lakh effectively tax-free",
+    "Standard deduction raised to ₹75,000 (from ₹50,000)",
+    "New slab structure with 7 brackets instead of 6",
+    "Maximum surcharge capped at 25% under new regime"
+  ],
+  "last_updated": "2025-03-28T00:00:00"
+}

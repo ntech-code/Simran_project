@@ -1,45 +1,11 @@
-# Git
-.git
-.gitignore
-
-# Python
+node_modules
+frontend/node_modules
+frontend/dist
 __pycache__
 *.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-*.egg
-*.egg-info
-dist
-build
-venv
-env
-.env.local
-
-# Node
-node_modules
-npm-debug.log
-yarn-error.log
-
-# IDE
-.vscode
-.idea
-*.swp
-*.swo
-*.swn
-
-# Documentation
-*.md
-!README.md
-
-# Test files
-test_*.py
-*_test.py
-tests/
-
-# Misc
+.env
+.git
 .DS_Store
-*.log
-tmp/
-temp/
+users.db
+vertex_ai_key.json
+Users/

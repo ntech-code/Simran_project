@@ -15,15 +15,9 @@ class TransactionAnalyzerAgent:
 
     def __init__(self):
         """Initialize the Transaction Analyzer Agent"""
-        self.model_name = "gemini-2.0-flash-exp"
-
-        # Configure Gemini API (New SDK Syntax)
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            print("Warning: GEMINI_API_KEY not found in environment variables")
-        
-        # Initialize the Client instead of using configure()
-        self.client = genai.Client(api_key=api_key)
+        from agents.genai_client import get_genai_client, get_model_name
+        self.client = get_genai_client()
+        self.model_name = get_model_name()
 
     def analyze_file(self, file_path: str) -> Dict[str, Any]:
         """

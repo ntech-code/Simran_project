@@ -1,26 +1,16 @@
 import { useState, useEffect } from 'react'
 import { taxAPI } from '../utils/api'
 import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
 import { useAuth } from '../context/AuthContext'
-import axios from 'axios'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 function Dashboard() {
   const { user } = useAuth()
   const [systemStatus, setSystemStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [taxData, setTaxData] = useState(null)
-
-  // Tax Rules state
-  const [regime, setRegime] = useState('new')
-  const [financialYear, setFinancialYear] = useState('2024-25')
-  const [rules, setRules] = useState(null)
-  const [rulesLoading, setRulesLoading] = useState(false)
-  const [rulesError, setRulesError] = useState('')
 
   useEffect(() => {
     checkSystemStatus()
@@ -33,7 +23,6 @@ function Dashboard() {
       const status = await taxAPI.healthCheck()
       setSystemStatus(status)
     } catch (error) {
-      console.error('Failed to check system status:', error)
       setSystemStatus({ status: 'offline' })
     } finally {
       setLoading(false)
@@ -42,160 +31,39 @@ function Dashboard() {
 
   const loadTaxData = () => {
     const savedData = localStorage.getItem('lastTaxCalculation')
-    if (savedData) {
-      setTaxData(JSON.parse(savedData))
+    if (savedData && savedData !== 'undefined') {
+      try {
+        setTaxData(JSON.parse(savedData))
+      } catch (err) {
+        console.error('Failed to parse cached tax calculation', err)
+        localStorage.removeItem('lastTaxCalculation')
+      }
     }
   }
 
-  const handleFetchRules = async () => {
-    setRulesLoading(true)
-    setRulesError('')
-    setRules(null)
-
-    try {
-      const response = await axios.get(`${API_URL}/rules/current`, {
-        params: {
-          regime,
-          financial_year: financialYear
-        }
-      })
-      setRules(response.data)
-    } catch (err) {
-      setRulesError(err.response?.data?.detail || 'Failed to fetch tax rules')
-    } finally {
-      setRulesLoading(false)
-    }
+  const formatCurrency = (amt) => {
+    if (!amt && amt !== 0) return '₹0'
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amt)
   }
 
-  const handleGenerateRules = async () => {
-    setRulesLoading(true)
-    setRulesError('')
-    setRules(null)
+  const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6']
 
-    try {
-      const response = await axios.post(`${API_URL}/generate-rules`, null, {
-        params: {
-          regime: regime === 'both' ? 'both' : regime,
-          financial_year: financialYear
-        }
-      })
-      setRules(response.data)
-    } catch (err) {
-      setRulesError(err.response?.data?.detail || 'Failed to generate tax rules')
-    } finally {
-      setRulesLoading(false)
-    }
-  }
+  const newRegimeSlabs = [
+    { range: '₹0 – ₹4L', rate: 0 },
+    { range: '₹4L – ₹8L', rate: 5 },
+    { range: '₹8L – ₹12L', rate: 10 },
+    { range: '₹12L – ₹16L', rate: 15 },
+    { range: '₹16L – ₹20L', rate: 20 },
+    { range: '₹20L – ₹24L', rate: 25 },
+    { range: 'Above ₹24L', rate: 30 },
+  ]
 
-  const formatValue = (value) => {
-    if (typeof value === 'boolean') return value ? 'Yes' : 'No'
-    if (typeof value === 'number') return value.toLocaleString('en-IN')
-    if (typeof value === 'string') return value
-    if (Array.isArray(value)) {
-      return (
-        <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
-          {value.map((item, idx) => (
-            <li key={idx}>{typeof item === 'object' ? formatValue(item) : item}</li>
-          ))}
-        </ul>
-      )
-    }
-    if (typeof value === 'object' && value !== null) {
-      return (
-        <div style={{ marginLeft: '1rem' }}>
-          {Object.entries(value).map(([k, v]) => (
-            <div key={k} style={{ marginBottom: '0.25rem' }}>
-              <strong>{k.replace(/_/g, ' ')}:</strong> {formatValue(v)}
-            </div>
-          ))}
-        </div>
-      )
-    }
-    return String(value)
-  }
-
-  const renderRulesSection = (title, data) => {
-    if (!data) return null
-
-    return (
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <h3 style={{ marginBottom: '1rem', color: 'var(--primary-color)' }}>{title}</h3>
-        <div style={{ display: 'grid', gap: '0.5rem' }}>
-          {typeof data === 'object' && !Array.isArray(data) ? (
-            Object.entries(data).map(([key, value]) => (
-              <div key={key} style={{
-                padding: '0.75rem',
-                background: 'var(--bg-secondary)',
-                borderRadius: '4px'
-              }}>
-                <div style={{ fontWeight: '500', marginBottom: '0.25rem' }}>
-                  {key.replace(/_/g, ' ').toUpperCase()}
-                </div>
-                <div>{formatValue(value)}</div>
-              </div>
-            ))
-          ) : Array.isArray(data) ? (
-            <div style={{
-              padding: '0.75rem',
-              background: 'var(--bg-secondary)',
-              borderRadius: '4px'
-            }}>
-              {formatValue(data)}
-            </div>
-          ) : (
-            <div style={{
-              padding: '0.75rem',
-              background: 'var(--bg-secondary)',
-              borderRadius: '4px'
-            }}>
-              {formatValue(data)}
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  // Prepare chart data
-  const getRegimeComparisonData = () => {
-    if (!taxData) return []
-
-    const slabs = taxData.regime === 'old' ? [
-      { range: '0-2.5L', rate: 0 },
-      { range: '2.5L-5L', rate: 5 },
-      { range: '5L-10L', rate: 20 },
-      { range: '10L+', rate: 30 }
-    ] : [
-      { range: '0-3L', rate: 0 },
-      { range: '3L-7L', rate: 5 },
-      { range: '7L-10L', rate: 10 },
-      { range: '10L-12L', rate: 15 },
-      { range: '12L-15L', rate: 20 },
-      { range: '15L+', rate: 30 }
-    ]
-
-    return slabs
-  }
-
-  const getTaxBreakdownData = () => {
-    if (!taxData) return []
-
-    return [
-      { name: 'Base Tax', value: taxData.base_tax || 0 },
-      { name: 'Surcharge', value: taxData.surcharge || 0 },
-      { name: 'Cess', value: taxData.cess || 0 }
-    ].filter(item => item.value > 0)
-  }
-
-  const getDeductionsData = () => {
-    if (!taxData?.deductions) return []
-
-    return Object.entries(taxData.deductions)
-      .map(([name, value]) => ({ name, value }))
-      .filter(item => item.value > 0)
-  }
-
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
+  const oldRegimeSlabs = [
+    { range: '₹0 – ₹2.5L', rate: 0 },
+    { range: '₹2.5L – ₹5L', rate: 5 },
+    { range: '₹5L – ₹10L', rate: 20 },
+    { range: 'Above ₹10L', rate: 30 },
+  ]
 
   if (loading) {
     return (
@@ -207,361 +75,243 @@ function Dashboard() {
 
   return (
     <div>
-      <div className="mb-3">
-        <h2>Dashboard</h2>
-        <p className="text-secondary">
-          Welcome back, {user?.name}! Your Multi-Agent Tax Analysis System
-        </p>
+      {/* Welcome Banner */}
+      <div className="card mb-3" style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%)', color: 'white', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <h2 style={{ margin: 0, marginBottom: '0.5rem', fontSize: '1.8rem' }}>
+            Welcome back, {user?.name || 'Taxpayer'}! 👋
+          </h2>
+          <p style={{ opacity: 0.9, margin: 0, marginBottom: '1rem', fontSize: '1.05rem' }}>
+            Indian Tax Analysis System · Assessment Year 2026-27 (FY 2025-26)
+          </p>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <span style={{ background: 'rgba(255,255,255,0.2)', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.85rem', backdropFilter: 'blur(10px)' }}>
+              {systemStatus?.status === 'online' ? '🟢 System Online' : '🔴 System Offline'}
+            </span>
+            <span style={{ background: 'rgba(255,255,255,0.2)', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.85rem' }}>
+              📅 FY 2025-26 Rules Active
+            </span>
+          </div>
+        </div>
       </div>
 
-      {/* Analytics Charts - Show only if user has calculated tax */}
+      {/* Budget 2025 Highlights */}
+      <div className="card mb-3" style={{ borderLeft: '5px solid #f59e0b' }}>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+          🏛️ Union Budget 2025 Highlights — What Changed?
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+          <div style={{ background: '#fef3c7', padding: '1rem', borderRadius: '10px' }}>
+            <div style={{ fontWeight: '700', color: '#92400e', marginBottom: '0.25rem' }}>💰 Tax-Free Income Raised</div>
+            <p style={{ margin: 0, color: '#78350f', fontSize: '0.9rem' }}>
+              No tax on income up to <strong>₹12 Lakh</strong> under New Regime (₹12.75L for salaried). Previously it was ₹7 Lakh.
+            </p>
+          </div>
+          <div style={{ background: '#d1fae5', padding: '1rem', borderRadius: '10px' }}>
+            <div style={{ fontWeight: '700', color: '#065f46', marginBottom: '0.25rem' }}>📋 Standard Deduction ↑</div>
+            <p style={{ margin: 0, color: '#064e3b', fontSize: '0.9rem' }}>
+              Standard Deduction increased to <strong>₹75,000</strong> from ₹50,000 under New Regime. No receipts needed — automatically deducted from your salary.
+            </p>
+          </div>
+          <div style={{ background: '#ede9fe', padding: '1rem', borderRadius: '10px' }}>
+            <div style={{ fontWeight: '700', color: '#5b21b6', marginBottom: '0.25rem' }}>🔄 New 7-Slab Structure</div>
+            <p style={{ margin: 0, color: '#4c1d95', fontSize: '0.9rem' }}>
+              New Regime now has <strong>7 tax slabs</strong> (was 6). Nil slab raised from ₹3L to <strong>₹4 Lakh</strong>.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* User's Last Calculation Summary */}
       {taxData && (
-        <>
-          <div className="grid grid-2 mb-3">
-            {/* Tax Overview Stats */}
-            <div className="card">
-              <h3>Your Tax Overview</h3>
-              <div className="stats-grid">
-                <div className="stat-card">
-                  <div className="stat-label">Gross Income</div>
-                  <div className="stat-value">₹{taxData.gross_income?.toLocaleString('en-IN')}</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Total Tax</div>
-                  <div className="stat-value text-primary">₹{taxData.total_tax?.toLocaleString('en-IN')}</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Effective Rate</div>
-                  <div className="stat-value">{taxData.effective_tax_rate?.toFixed(2)}%</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Risk Level</div>
-                  <div className={`stat-value ${
-                    taxData.risk_level === 'LOW' ? 'text-success' :
-                    taxData.risk_level === 'MEDIUM' ? 'text-warning' : 'text-danger'
-                  }`}>
-                    {taxData.risk_level}
-                  </div>
-                </div>
+        <div className="card mb-3">
+          <h3 style={{ marginBottom: '1.5rem' }}>📊 Your Last Tax Calculation</h3>
+          <div className="stats-grid">
+            <div className="stat-card" style={{ borderLeft: '4px solid #6366f1' }}>
+              <div className="stat-label">Gross Income</div>
+              <div className="stat-value" style={{ fontSize: '1.6rem' }}>{formatCurrency(taxData.gross_income)}</div>
+            </div>
+            <div className="stat-card" style={{ borderLeft: '4px solid #ef4444' }}>
+              <div className="stat-label">Total Tax</div>
+              <div className="stat-value" style={{ fontSize: '1.6rem', color: '#ef4444' }}>{formatCurrency(taxData.total_tax)}</div>
+            </div>
+            <div className="stat-card" style={{ borderLeft: '4px solid #10b981' }}>
+              <div className="stat-label">Take-Home (Yearly)</div>
+              <div className="stat-value" style={{ fontSize: '1.6rem', color: '#10b981' }}>
+                {formatCurrency((taxData.gross_income || 0) - (taxData.total_tax || 0))}
               </div>
             </div>
-
-            {/* Tax Regime Slabs */}
-            <div className="card">
-              <h3>{taxData.regime?.toUpperCase()} Regime Tax Slabs</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={getRegimeComparisonData()}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="range" style={{ fontSize: '0.75rem' }} />
-                  <YAxis style={{ fontSize: '0.75rem' }} />
-                  <Tooltip />
-                  <Bar dataKey="rate" fill="#3b82f6" name="Tax Rate %" />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="stat-card" style={{ borderLeft: '4px solid #f59e0b' }}>
+              <div className="stat-label">Effective Tax Rate</div>
+              <div className="stat-value" style={{ fontSize: '1.6rem' }}>{taxData.effective_tax_rate?.toFixed(2)}%</div>
+            </div>
+            <div className="stat-card" style={{ borderLeft: '4px solid #8b5cf6' }}>
+              <div className="stat-label">Monthly Tax</div>
+              <div className="stat-value" style={{ fontSize: '1.6rem' }}>
+                {formatCurrency(Math.round((taxData.total_tax || 0) / 12))}
+              </div>
+            </div>
+            <div className="stat-card" style={{ borderLeft: `4px solid ${taxData.risk_level === 'LOW' ? '#10b981' : taxData.risk_level === 'MEDIUM' ? '#f59e0b' : '#ef4444'}` }}>
+              <div className="stat-label">Compliance Risk</div>
+              <div className="stat-value" style={{ fontSize: '1.6rem', color: taxData.risk_level === 'LOW' ? '#10b981' : taxData.risk_level === 'MEDIUM' ? '#f59e0b' : '#ef4444' }}>
+                {taxData.risk_level || 'N/A'}
+              </div>
             </div>
           </div>
-
-          <div className="grid grid-2 mb-3">
-            {/* Tax Breakdown Pie Chart */}
-            {getTaxBreakdownData().length > 0 && (
-              <div className="card">
-                <h3>Tax Breakdown</h3>
-                <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
-                    <Pie
-                      data={getTaxBreakdownData()}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {getTaxBreakdownData().map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => `₹${value.toLocaleString('en-IN')}`} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            {/* Deductions Chart */}
-            {getDeductionsData().length > 0 && (
-              <div className="card">
-                <h3>Your Deductions</h3>
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={getDeductionsData()} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" style={{ fontSize: '0.75rem' }} />
-                    <YAxis dataKey="name" type="category" width={100} style={{ fontSize: '0.75rem' }} />
-                    <Tooltip formatter={(value) => `₹${value.toLocaleString('en-IN')}`} />
-                    <Bar dataKey="value" fill="#10b981" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
-        </>
+        </div>
       )}
 
-      {/* System Status */}
-      <div className="card mb-3">
-        <h3>System Status</h3>
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-label">API Status</div>
-            <div className="stat-value">
-              {systemStatus?.status === 'online' ? (
-                <span className="text-success">Online</span>
-              ) : (
-                <span className="text-danger">Offline</span>
-              )}
-            </div>
+      {/* Quick Actions */}
+      <div className="grid grid-2 mb-3" style={{ gap: '1rem' }}>
+        <a href="/calculator" style={{ textDecoration: 'none' }}>
+          <div className="card" style={{ textAlign: 'center', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s', padding: '2rem' }} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.12)' }} onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🧮</div>
+            <h3 style={{ marginBottom: '0.5rem' }}>Tax Calculator & Reports</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>Calculate tax, compare regimes, and download official PDF reports</p>
           </div>
-          <div className="stat-card">
-            <div className="stat-label">Service</div>
-            <div className="stat-value text-sm">{systemStatus?.service || 'N/A'}</div>
+        </a>
+        <a href="/fraud-analysis" style={{ textDecoration: 'none' }}>
+          <div className="card" style={{ textAlign: 'center', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s', padding: '2rem' }} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.12)' }} onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🕵️</div>
+            <h3 style={{ marginBottom: '0.5rem' }}>AI Fraud Detection</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>Upload bank statements for AI-powered forensic analysis</p>
           </div>
-          <div className="stat-card">
-            <div className="stat-label">Version</div>
-            <div className="stat-value">{systemStatus?.version || '1.0.0'}</div>
+        </a>
+      </div>
+
+      {/* FY 2025-26 Tax Slabs Reference */}
+      <div className="grid grid-2 mb-3">
+        <div className="card">
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ background: '#6366f1', color: 'white', padding: '0.25rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem' }}>RECOMMENDED</span>
+            New Regime (FY 2025-26)
+          </h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1rem' }}>
+            Lower tax rates but <strong>most deductions (80C, 80D, HRA) are NOT allowed</strong>. Best if your deductions are less than ₹3-4 Lakh.
+          </p>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={newRegimeSlabs}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="range" style={{ fontSize: '0.65rem' }} angle={-15} textAnchor="end" height={50} />
+              <YAxis style={{ fontSize: '0.75rem' }} unit="%" />
+              <Tooltip formatter={(v) => `${v}%`} />
+              <Bar dataKey="rate" fill="#6366f1" name="Tax Rate" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          <table className="comparison-table" style={{ marginTop: '0.5rem' }}>
+            <thead>
+              <tr><th>Income Range</th><th>Tax Rate</th></tr>
+            </thead>
+            <tbody>
+              {newRegimeSlabs.map((s, i) => (
+                <tr key={i}><td>{s.range}</td><td><strong>{s.rate}%</strong></td></tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#ede9fe', borderRadius: '8px', fontSize: '0.85rem', color: '#5b21b6' }}>
+            <strong>💡 Key:</strong> Standard Deduction = ₹75,000 · Section 87A Rebate = ₹60,000 (income ≤ ₹12L) · <strong>Effectively tax-free up to ₹12.75L for salaried</strong>
+          </div>
+        </div>
+
+        <div className="card">
+          <h3>Old Regime (FY 2025-26)</h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1rem' }}>
+            Higher tax rates but <strong>you can claim all deductions</strong> like 80C (₹1.5L), 80D, HRA, Home Loan. Best if your deductions exceed ₹3-4 Lakh.
+          </p>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={oldRegimeSlabs}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="range" style={{ fontSize: '0.7rem' }} />
+              <YAxis style={{ fontSize: '0.75rem' }} unit="%" />
+              <Tooltip formatter={(v) => `${v}%`} />
+              <Bar dataKey="rate" fill="#f59e0b" name="Tax Rate" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          <table className="comparison-table" style={{ marginTop: '0.5rem' }}>
+            <thead>
+              <tr><th>Income Range</th><th>Tax Rate</th></tr>
+            </thead>
+            <tbody>
+              {oldRegimeSlabs.map((s, i) => (
+                <tr key={i}><td>{s.range}</td><td><strong>{s.rate}%</strong></td></tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#fef3c7', borderRadius: '8px', fontSize: '0.85rem', color: '#92400e' }}>
+            <strong>💡 Key:</strong> Standard Deduction = ₹50,000 · Section 87A Rebate = ₹12,500 (income ≤ ₹5L) · Allows 80C, 80D, HRA, 24(b) deductions
           </div>
         </div>
       </div>
 
-      {/* Features */}
-      <div className="grid grid-2">
-        <div className="card">
-          <h3>Tax Calculator</h3>
-          <p className="text-secondary mb-2">
-            Calculate your income tax for FY 2024-25 using either the old or new regime.
-          </p>
-          <ul className="text-sm text-secondary" style={{ listStyle: 'none' }}>
-            <li>✓ Accurate slab-based calculation</li>
-            <li>✓ Deduction validation</li>
-            <li>✓ Surcharge & cess computation</li>
-            <li>✓ Rebate application (Section 87A)</li>
-          </ul>
-        </div>
-
-        <div className="card">
-          <h3>Fraud Detection</h3>
-          <p className="text-secondary mb-2">
-            AI-powered fraud detection analyzes your tax filing for compliance issues.
-          </p>
-          <ul className="text-sm text-secondary" style={{ listStyle: 'none' }}>
-            <li>✓ Deduction ratio analysis</li>
-            <li>✓ Pattern anomaly detection</li>
-            <li>✓ Risk scoring (0-1 scale)</li>
-            <li>✓ Compliance recommendations</li>
-          </ul>
-        </div>
-
-        <div className="card">
-          <h3>Regime Comparison</h3>
-          <p className="text-secondary mb-2">
-            Compare old vs new tax regime to find which saves you more money.
-          </p>
-          <ul className="text-sm text-secondary" style={{ listStyle: 'none' }}>
-            <li>✓ Side-by-side comparison</li>
-            <li>✓ Savings calculation</li>
-            <li>✓ Best regime recommendation</li>
-            <li>✓ Visual charts</li>
-          </ul>
-        </div>
-
-        <div className="card">
-          <h3>Tax Reports</h3>
-          <p className="text-secondary mb-2">
-            Generate comprehensive tax reports with detailed breakdowns.
-          </p>
-          <ul className="text-sm text-secondary" style={{ listStyle: 'none' }}>
-            <li>✓ Detailed tax breakdown</li>
-            <li>✓ Fraud analysis report</li>
-            <li>✓ Compliance summary</li>
-            <li>✓ Downloadable format</li>
-          </ul>
+      {/* Understanding Deductions */}
+      <div className="card mb-3">
+        <h3 style={{ marginBottom: '1rem' }}>📚 Understanding Tax Deductions (Plain English)</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
+          <div style={{ padding: '1rem', background: 'var(--bg-secondary)', borderRadius: '10px', borderLeft: '4px solid #6366f1' }}>
+            <strong>Standard Deduction</strong>
+            <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              A flat amount automatically subtracted from your salary before tax is calculated. <strong>No receipts needed.</strong> New Regime: ₹75,000. Old Regime: ₹50,000.
+            </p>
+          </div>
+          <div style={{ padding: '1rem', background: 'var(--bg-secondary)', borderRadius: '10px', borderLeft: '4px solid #10b981' }}>
+            <strong>Section 80C (Old Regime Only)</strong>
+            <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Save up to <strong>₹1.5 Lakh</strong> by investing in PPF, ELSS Mutual Funds, EPF, Life Insurance, Home Loan Principal, NSC, 5-yr Fixed Deposit, Sukanya Samriddhi.
+            </p>
+          </div>
+          <div style={{ padding: '1rem', background: 'var(--bg-secondary)', borderRadius: '10px', borderLeft: '4px solid #f59e0b' }}>
+            <strong>Section 80D (Old Regime Only)</strong>
+            <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Health insurance premiums. <strong>₹25,000</strong> for self/family + <strong>₹25,000</strong> for parents (₹50K if parents are senior citizens). Max total: ₹75,000.
+            </p>
+          </div>
+          <div style={{ padding: '1rem', background: 'var(--bg-secondary)', borderRadius: '10px', borderLeft: '4px solid #ef4444' }}>
+            <strong>Section 24(b) — Home Loan Interest (Old Regime Only)</strong>
+            <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              If you pay EMI on a home loan, the <strong>interest portion</strong> (not principal) is deductible up to <strong>₹2 Lakh</strong> per year for a self-occupied house.
+            </p>
+          </div>
+          <div style={{ padding: '1rem', background: 'var(--bg-secondary)', borderRadius: '10px', borderLeft: '4px solid #8b5cf6' }}>
+            <strong>Section 87A — Tax Rebate</strong>
+            <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              If your taxable income is below a threshold, you get a <strong>rebate</strong> (discount) on your tax. New Regime: ₹60,000 rebate if income ≤ ₹12L. Old: ₹12,500 if ≤ ₹5L.
+            </p>
+          </div>
+          <div style={{ padding: '1rem', background: 'var(--bg-secondary)', borderRadius: '10px', borderLeft: '4px solid #14b8a6' }}>
+            <strong>Health & Education Cess (4%)</strong>
+            <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              A <strong>4% surcharge</strong> applied on top of your final tax amount. This funds government healthcare and education. Both regimes charge this.
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Getting Started */}
-      <div className="card mt-3">
-        <h3>Getting Started</h3>
-        <div className="grid grid-3">
-          <div>
-            <h4 className="text-sm font-bold mb-1">1. Enter Income</h4>
-            <p className="text-xs text-secondary">
-              Go to Tax Calculator and enter your gross annual income and select your preferred regime.
+      <div className="card">
+        <h3>🚀 How to Use This System</h3>
+        <div className="grid grid-3" style={{ marginTop: '1rem' }}>
+          <div style={{ textAlign: 'center', padding: '1rem' }}>
+            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>1️⃣</div>
+            <h4 style={{ marginBottom: '0.5rem' }}>Enter Your Salary</h4>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
+              Go to <strong>Tax Calculator</strong>, enter your gross annual income (CTC or total salary before deductions).
             </p>
           </div>
-          <div>
-            <h4 className="text-sm font-bold mb-1">2. Add Deductions</h4>
-            <p className="text-xs text-secondary">
-              Add applicable deductions like 80C, 80D, home loan interest, etc.
+          <div style={{ textAlign: 'center', padding: '1rem' }}>
+            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>2️⃣</div>
+            <h4 style={{ marginBottom: '0.5rem' }}>Add Deductions</h4>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
+              If choosing Old Regime, add your investments (80C), insurance (80D), home loan interest, etc.
             </p>
           </div>
-          <div>
-            <h4 className="text-sm font-bold mb-1">3. Get Analysis</h4>
-            <p className="text-xs text-secondary">
-              View detailed tax calculation, fraud risk score, and compliance recommendations.
+          <div style={{ textAlign: 'center', padding: '1rem' }}>
+            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>3️⃣</div>
+            <h4 style={{ marginBottom: '0.5rem' }}>See Results</h4>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
+              Get instant tax breakdown, risk analysis, and use <strong>Compare Regimes</strong> to find the better option.
             </p>
           </div>
         </div>
-      </div>
-
-      {/* Tax Slabs Quick Reference */}
-      <div className="grid grid-2 mt-3">
-        <div className="card">
-          <h3>Old Regime Slabs (FY 2024-25)</h3>
-          <table className="comparison-table">
-            <thead>
-              <tr>
-                <th>Income Range</th>
-                <th>Tax Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Up to ₹2.5L</td>
-                <td>0%</td>
-              </tr>
-              <tr>
-                <td>₹2.5L - ₹5L</td>
-                <td>5%</td>
-              </tr>
-              <tr>
-                <td>₹5L - ₹10L</td>
-                <td>20%</td>
-              </tr>
-              <tr>
-                <td>Above ₹10L</td>
-                <td>30%</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div className="card">
-          <h3>New Regime Slabs (FY 2024-25)</h3>
-          <table className="comparison-table">
-            <thead>
-              <tr>
-                <th>Income Range</th>
-                <th>Tax Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Up to ₹3L</td>
-                <td>0%</td>
-              </tr>
-              <tr>
-                <td>₹3L - ₹7L</td>
-                <td>5%</td>
-              </tr>
-              <tr>
-                <td>₹7L - ₹10L</td>
-                <td>10%</td>
-              </tr>
-              <tr>
-                <td>₹10L - ₹12L</td>
-                <td>15%</td>
-              </tr>
-              <tr>
-                <td>₹12L - ₹15L</td>
-                <td>20%</td>
-              </tr>
-              <tr>
-                <td>Above ₹15L</td>
-                <td>30%</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Tax Rules Viewer */}
-      <div className="card mt-3">
-        <h3>Tax Rules Viewer</h3>
-        <p className="text-secondary mb-2">View detailed tax rules and regulations for any financial year</p>
-
-        {/* Controls */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-          <div className="form-group">
-            <label>Tax Regime</label>
-            <select
-              value={regime}
-              onChange={(e) => setRegime(e.target.value)}
-              className="form-input"
-            >
-              <option value="new">New Regime</option>
-              <option value="old">Old Regime</option>
-              <option value="both">Both Regimes</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Financial Year</label>
-            <select
-              value={financialYear}
-              onChange={(e) => setFinancialYear(e.target.value)}
-              className="form-input"
-            >
-              <option value="2024-25">2024-25</option>
-              <option value="2023-24">2023-24</option>
-              <option value="2022-23">2022-23</option>
-            </select>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <button
-            onClick={handleFetchRules}
-            disabled={rulesLoading || regime === 'both'}
-            className="btn btn-primary"
-          >
-            {rulesLoading ? 'Loading...' : 'Fetch Tax Rules'}
-          </button>
-          <button
-            onClick={handleGenerateRules}
-            disabled={rulesLoading}
-            className="btn btn-secondary"
-          >
-            {rulesLoading ? 'Generating...' : 'Generate Tax Rules (AI)'}
-          </button>
-        </div>
-
-        {/* Error Message */}
-        {rulesError && (
-          <div className="alert alert-error" style={{ marginTop: '1rem' }}>
-            {rulesError}
-          </div>
-        )}
-
-        {/* Rules Display */}
-        {rules && (
-          <div style={{ marginTop: '2rem' }}>
-            <div className="card" style={{ marginBottom: '1.5rem', background: 'linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%)', color: 'white' }}>
-              <h2 style={{ margin: 0, marginBottom: '0.5rem' }}>
-                {rules.regime === 'new' ? 'New Tax Regime' : 'Old Tax Regime'}
-              </h2>
-              <p style={{ margin: 0, opacity: 0.9 }}>Financial Year: {rules.financial_year}</p>
-            </div>
-
-            {renderRulesSection('Tax Slabs', rules.slabs)}
-            {renderRulesSection('Standard Deduction', rules.standard_deduction)}
-            {renderRulesSection('Section 80C Deductions', rules.section_80c)}
-            {renderRulesSection('Section 80D (Health Insurance)', rules.section_80d)}
-            {renderRulesSection('HRA (House Rent Allowance)', rules.hra)}
-            {renderRulesSection('Home Loan Interest', rules.home_loan_interest)}
-            {renderRulesSection('Other Deductions', rules.other_deductions)}
-            {renderRulesSection('Surcharge Rules', rules.surcharge)}
-            {renderRulesSection('Education Cess', rules.cess)}
-          </div>
-        )}
       </div>
     </div>
   )

@@ -11,6 +11,7 @@ function ChatbotBubble() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [hasContext, setHasContext] = useState(false)
+  const [totalTax, setTotalTax] = useState(null)
   const [isMinimized, setIsMinimized] = useState(false)
   const messagesEndRef = useRef(null)
   const chatContainerRef = useRef(null)
@@ -53,6 +54,7 @@ function ChatbotBubble() {
 
         await axios.post(`${API_BASE}/chatbot/set-context`, contextPayload)
         setHasContext(true)
+        setTotalTax(taxData.total_tax || 0)
 
         // Welcome message with context
         setMessages([{
@@ -127,7 +129,7 @@ function ChatbotBubble() {
 
   const quickQuestions = [
     "How was my tax calculated?",
-    "Can I save more tax?",
+    ...(totalTax > 0 ? ["Can I save more tax?"] : []),
     "What's the difference between regimes?",
     "Explain my deductions"
   ]

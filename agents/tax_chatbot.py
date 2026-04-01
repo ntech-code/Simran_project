@@ -29,12 +29,11 @@ class TaxChatbotAgent:
 
     def __init__(self, api_key: Optional[str] = None):
         """Initialize chatbot"""
-        self.api_key = api_key or os.getenv('GEMINI_API_KEY')
-        if not self.api_key:
-            raise ValueError("GEMINI_API_KEY not found")
-
-        self.client = genai.Client(api_key=self.api_key)
-        self.model = "gemini-3-flash-preview"
+        from agents.genai_client import get_genai_client, get_model_name
+        self.client = get_genai_client()
+        if not self.client:
+            raise ValueError("No AI credentials found (Vertex AI or Gemini API key)")
+        self.model = get_model_name()
 
         # Store conversation history
         self.conversation_history = []
@@ -132,29 +131,29 @@ Your role:
 8. Reference their specific numbers when relevant
 
 Guidelines:
-- If user asks about "my tax" or "my calculation", refer to the context above
-- If user asks general questions, provide accurate Indian tax law info (FY 2024-25)
-- Be concise but thorough
-- Use bullet points for clarity
-- Always be encouraging and supportive
+- If user asks about "my tax" or "my calculation", refer to the context above.
+- If user asks general questions, provide accurate Indian tax law info (FY 2024-25).
+- CRITICAL INSTRUCTION FOR "SAVE TAX" QUERIES: If the user asks "Can I save more tax?" or asks for tax-saving advice, DO NOT immediately dump a long list of instructions. Instead, start an interactive interview! Politely ask them 3 specific questions about their lifestyle (e.g. Do you live in a rented house? Are you paying off an education loan? Do you have any business/freelance expenses?). Wait for them to answer. ONLY after they answer, analyze their responses and provide a custom conclusion.
+- Be concise but thorough.
+- Use bullet points for clarity.
+- Always be encouraging and supportive.
 """
 
-        # Build conversation for Gemini
+        # Bypass strict Gemini Role Arrays: Embed history into text
+        if self.conversation_history:
+            system_context += "\n\n--- PREVIOUS CONVERSATION HISTORY ---\n"
+            for msg in self.conversation_history[-6:]:
+                role_label = "TAX EXPERT" if msg['role'] == "assistant" else "USER"
+                system_context += f"\n{role_label}: {msg['content']}"
+                
+        system_context += f"\n\n--- CURRENT USER QUESTION ---\nUSER: {user_message}\nTAX EXPERT:"
+
         messages = [
             types.Content(
                 role="user",
-                parts=[types.Part.from_text(text=system_context + "\n\nUser: " + user_message)]
+                parts=[types.Part.from_text(text=system_context)]
             )
         ]
-
-        # Add conversation history
-        for msg in self.conversation_history[-4:]:  # Last 4 messages for context
-            messages.append(
-                types.Content(
-                    role=msg['role'],
-                    parts=[types.Part.from_text(text=msg['content'])]
-                )
-            )
 
         try:
             config = types.GenerateContentConfig(

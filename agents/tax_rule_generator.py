@@ -45,12 +45,11 @@ class TaxRuleGeneratorAgent:
 
     def __init__(self, api_key: Optional[str] = None):
         """Initialize the agent"""
-        self.api_key = api_key or os.getenv('GEMINI_API_KEY')
-        if not self.api_key:
-            raise ValueError("GEMINI_API_KEY not found")
-
-        self.client = genai.Client(api_key=self.api_key)
-        self.model = "gemini-3-flash-preview"
+        from agents.genai_client import get_genai_client, get_model_name
+        self.client = get_genai_client()
+        if not self.client:
+            raise ValueError("No AI credentials found (Vertex AI or Gemini API key)")
+        self.model = get_model_name()
 
         print("✓ TaxRuleGeneratorAgent initialized")
 
@@ -215,7 +214,7 @@ Return JSON in this structure:
         sources_used = []
 
         # Use predefined comprehensive data (as live crawling may not always work)
-        print("📋 Using comprehensive Indian tax rules for FY 2024-25...")
+        print(f"📋 Using comprehensive Indian tax rules for FY {financial_year}...")
 
         if regime == "new":
             rule_data = self._get_new_regime_rules(financial_year)
@@ -238,7 +237,65 @@ Return JSON in this structure:
         return rule_data
 
     def _get_new_regime_rules(self, financial_year: str) -> Dict:
-        """Get new regime tax rules for FY 2024-25"""
+        """Get new regime tax rules"""
+        if financial_year == "2025-26":
+            return {
+                "regime": "new",
+                "financial_year": financial_year,
+                "slabs": [
+                    {"min_income": 0, "max_income": 400000, "rate": 0},
+                    {"min_income": 400000, "max_income": 800000, "rate": 5},
+                    {"min_income": 800000, "max_income": 1200000, "rate": 10},
+                    {"min_income": 1200000, "max_income": 1600000, "rate": 15},
+                    {"min_income": 1600000, "max_income": 2000000, "rate": 20},
+                    {"min_income": 2000000, "max_income": 2400000, "rate": 25},
+                    {"min_income": 2400000, "max_income": None, "rate": 30}
+                ],
+                "deductions": [
+                    {
+                        "section": "80CCD(2)",
+                        "name": "Employer's contribution to NPS",
+                        "description": "Employer's contribution to National Pension Scheme",
+                        "max_limit": 0,
+                        "applicable_regime": ["new"],
+                        "note": "Up to 14% of salary for Central Govt, 10% for others"
+                    },
+                    {
+                        "section": "Standard Deduction",
+                        "name": "Standard Deduction",
+                        "description": "Flat deduction from salary income (enhanced in Budget 2024)",
+                        "max_limit": 75000,
+                        "applicable_regime": ["new"]
+                    }
+                ],
+                "rebates": [
+                    {
+                        "section": "87A",
+                        "name": "Rebate under section 87A",
+                        "max_rebate": 60000,
+                        "income_threshold": 1200000,
+                        "applicable_regime": ["new"],
+                        "note": "Income up to 12L tax-free; 12.75L for salaried with Standard Deduction"
+                    }
+                ],
+                "surcharges": [
+                    {"min_income": 0, "max_income": 5000000, "rate": 0},
+                    {"min_income": 5000000, "max_income": 10000000, "rate": 10},
+                    {"min_income": 10000000, "max_income": 20000000, "rate": 15},
+                    {"min_income": 20000000, "max_income": 50000000, "rate": 25},
+                    {"min_income": 50000000, "max_income": None, "rate": 25}
+                ],
+                "cess": {
+                    "rate": 4,
+                    "name": "Health and Education Cess"
+                },
+                "source_urls": [
+                    "https://www.incometax.gov.in/iec/foportal/",
+                    "https://incometaxindia.gov.in/"
+                ],
+                "last_updated": datetime.now().isoformat()
+            }
+        # FY 2024-25 fallback
         return {
             "regime": "new",
             "financial_year": financial_year,
@@ -398,7 +455,7 @@ def main():
 
     # Generate both regime rules
     for regime in ["old", "new"]:
-        agent.generate_rule_file(regime, financial_year="2024-25")
+        agent.generate_rule_file(regime, financial_year="2025-26")
         print()
 
 
