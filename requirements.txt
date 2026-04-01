@@ -30,3 +30,11 @@ openpyxl==3.1.2
 # Database & Auth added
 sqlalchemy==2.0.23
 pymysql==1.1.0
+
+# Machine Learning & OCR Tools
+scikit-learn
+xgboost
+PyPDF2
+pdfplumber
+fpdf
+google-cloud-aiplatform
