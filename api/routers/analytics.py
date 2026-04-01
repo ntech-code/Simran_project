@@ -352,7 +352,7 @@ async def extract_tax_documents(
             elif filename.lower().endswith((".xlsx", ".xls")):
                 try:
                     df = pd.read_excel(io.BytesIO(content))
-                    combined_text += df.to_string()
+                    combined_text += df.to_csv(index=False)
                 except:
                     combined_text += "[Failed to extract exact tabular string from Excel chunk]"
             else:
