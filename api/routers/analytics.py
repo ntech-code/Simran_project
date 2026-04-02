@@ -87,7 +87,8 @@ async def analyze_statements(
             raise HTTPException(status_code=400, detail=f"File {file.filename} is not a PDF. Please upload only PDF bank statements.")
         file_contents[file.filename] = await file.read()
         
-    # Validation Pass
+    # Validation Pass — uses pdfplumber for robust AES-256 support
+    import pdfplumber as _pdfplumber_val
     for filename, contents in file_contents.items():
         try:
             pdf_reader = PyPDF2.PdfReader(io.BytesIO(contents))
@@ -96,15 +97,21 @@ async def analyze_statements(
                 if not pwd:
                     required_passwords.append(filename)
                 else:
-                    success = pdf_reader.decrypt(pwd)
-                    if not success:
+                    try:
+                        with _pdfplumber_val.open(io.BytesIO(contents), password=pwd) as test_pdf:
+                            _ = test_pdf.pages[0].extract_text()
+                    except Exception:
                         incorrect_passwords.append(filename)
         except Exception as e:
             pwd = password_dict.get(filename)
             if not pwd:
                 required_passwords.append(filename)
             else:
-                incorrect_passwords.append(filename)
+                try:
+                    with _pdfplumber_val.open(io.BytesIO(contents), password=pwd) as test_pdf:
+                        _ = test_pdf.pages[0].extract_text()
+                except Exception:
+                    incorrect_passwords.append(filename)
                     
     if required_passwords or incorrect_passwords:
         return {
@@ -297,7 +304,8 @@ async def extract_tax_documents(
     for file in files:
         file_contents[file.filename] = await file.read()
         
-    # Validation Pass for Encrypted PDFs
+    # Validation Pass for Encrypted PDFs — uses pdfplumber for robust AES-256 support
+    import pdfplumber as _pdfplumber_check
     for filename, contents in file_contents.items():
         if filename.lower().endswith('.pdf'):
             try:
@@ -307,15 +315,24 @@ async def extract_tax_documents(
                     if not pwd:
                         required_passwords.append(filename)
                     else:
-                        success = pdf_reader.decrypt(pwd)
-                        if not success:
+                        # Use pdfplumber as the authoritative decryption validator
+                        # PyPDF2.decrypt() can throw on AES-256 even with correct passwords
+                        try:
+                            with _pdfplumber_check.open(io.BytesIO(contents), password=pwd) as test_pdf:
+                                _ = test_pdf.pages[0].extract_text()
+                        except Exception:
                             incorrect_passwords.append(filename)
             except Exception as e:
+                # PDF couldn't even be read by PyPDF2 — try pdfplumber directly
                 pwd = password_dict.get(filename)
                 if not pwd:
                     required_passwords.append(filename)
                 else:
-                    incorrect_passwords.append(filename)
+                    try:
+                        with _pdfplumber_check.open(io.BytesIO(contents), password=pwd) as test_pdf:
+                            _ = test_pdf.pages[0].extract_text()
+                    except Exception:
+                        incorrect_passwords.append(filename)
                     
     if required_passwords or incorrect_passwords:
         return {
@@ -358,7 +375,10 @@ async def extract_tax_documents(
         extraction_result = agent.parse_documents(combined_text)
         
         if extraction_result.get("error"):
-             raise HTTPException(status_code=500, detail=extraction_result["message"])
+            msg = extraction_result["message"]
+            if "rate limit" in msg.lower() or "429" in msg or "RESOURCE_EXHAUSTED" in msg:
+                raise HTTPException(status_code=429, detail="⚠️ AI service is temporarily rate-limited (too many requests). Please wait 1-2 minutes and try again.")
+            raise HTTPException(status_code=500, detail=msg)
              
         return {
             "status": "success",
@@ -368,7 +388,10 @@ async def extract_tax_documents(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to auto-extract tax documents: {str(e)}")
+        err_str = str(e)
+        if "rate limit" in err_str.lower() or "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+            raise HTTPException(status_code=429, detail="⚠️ AI service is temporarily rate-limited. Please wait 1-2 minutes and try again.")
+        raise HTTPException(status_code=500, detail=f"Failed to auto-extract tax documents: {err_str}")
 
 @router.post("/analyze-spending")
 async def analyze_spending(

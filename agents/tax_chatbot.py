@@ -155,36 +155,45 @@ Guidelines:
             )
         ]
 
-        try:
-            config = types.GenerateContentConfig(
-                temperature=0.7,
-            )
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                config = types.GenerateContentConfig(
+                    temperature=0.7,
+                )
 
-            response_text = ""
-            for chunk in self.client.models.generate_content_stream(
-                model=self.model,
-                contents=messages,
-                config=config,
-            ):
-                if chunk.text:
-                    response_text += chunk.text
+                response_text = ""
+                for chunk in self.client.models.generate_content_stream(
+                    model=self.model,
+                    contents=messages,
+                    config=config,
+                ):
+                    if chunk.text:
+                        response_text += chunk.text
 
-            # Store in history
-            self.conversation_history.append({
-                "role": "user",
-                "content": user_message,
-                "timestamp": datetime.now().isoformat()
-            })
-            self.conversation_history.append({
-                "role": "assistant",
-                "content": response_text,
-                "timestamp": datetime.now().isoformat()
-            })
+                if not response_text.strip():
+                    raise Exception("Empty response from AI model")
 
-            return response_text
+                # Store in history
+                self.conversation_history.append({
+                    "role": "user",
+                    "content": user_message,
+                    "timestamp": datetime.now().isoformat()
+                })
+                self.conversation_history.append({
+                    "role": "assistant",
+                    "content": response_text,
+                    "timestamp": datetime.now().isoformat()
+                })
 
-        except Exception as e:
-            return f"I apologize, I encountered an error: {str(e)}"
+                return response_text
+
+            except Exception as e:
+                error_str = str(e)
+                if attempt < max_retries - 1 and ('503' in error_str or 'UNAVAILABLE' in error_str or 'overloaded' in error_str.lower()):
+                    time.sleep(2 * (attempt + 1))
+                    continue
+                return f"I apologize, the AI service is temporarily busy. Please try again in a few seconds."
 
     def get_personalized_suggestions(self) -> List[str]:
         """Generate personalized tax-saving suggestions based on user context"""

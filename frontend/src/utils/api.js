@@ -7,6 +7,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 300000  // 5-minute default; individual calls override as needed
 })
 
 // Add a request interceptor to inject the JWT token
@@ -139,14 +140,14 @@ export const analyticsAPI = {
   extractTaxDocuments: async (formData) => {
     const response = await api.post('/analytics/document-tax-extraction', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 180000  // 3 minutes — AI parsing takes 45-60s for massive PDFs
+      timeout: 300000  // 5 minutes — fast 2.0 model still needs time for 500KB+ PDFs
     })
     return response.data
   },
   analyzeSpending: async (formData) => {
     const response = await api.post('/analytics/analyze-spending', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 180000  // 3 minutes — AI review takes 20-60s for large PDFs
+      timeout: 300000  // 5 minutes — spend analysis over large bank statements
     })
     return response.data
   }

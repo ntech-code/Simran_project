@@ -77,7 +77,7 @@ RETURN ONLY VALID JSON RESPONDING TO THIS EXACT SCHEMA:
 Never output markdown. Ensure numbers are floats without commas.
 """
         
-        print("Sending full document to Standard Gemini 2.5 Flash...", flush=True)
+        print(f"Sending full document to {self.model}...", flush=True)
         config = types.GenerateContentConfig(
             temperature=0.0,
             system_instruction=extract_instruction,

@@ -14,18 +14,20 @@ _client_initialized = False
 
 def get_genai_client():
     from google import genai
-    from google.genai.errors import APIError
+    from google.genai import types
     
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY not found in .env")
-        
-    return genai.Client(api_key=api_key)
+    
+    # Set a 300-second HTTP timeout so the client never hangs indefinitely
+    http_options = types.HttpOptions(timeout=300000)  # 300 seconds in ms
+    return genai.Client(api_key=api_key, http_options=http_options)
 
 
 def get_model_name():
-    """Returns the model name to use."""
-    return "gemini-2.5-flash-lite"
+    """Returns the model name to use for document parsing (fast, stable)."""
+    return "models/gemini-flash-latest"
 
 
 def safe_generate(client, model, contents, config, max_retries=3):
@@ -67,8 +69,14 @@ def safe_generate(client, model, contents, config, max_retries=3):
         except Exception as e:
             err_str = str(e)
             if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-                wait_time = 3 + (attempt * 2)
-                print(f"  ⏳ Gemini rate limited (429). Waiting {wait_time}s... (Attempt {attempt+1}/{max_retries})")
+                # Gemini rate limits reset every ~60 seconds — wait 30/60/90s
+                wait_time = 30 + (attempt * 30)
+                print(f"  ⏳ Gemini rate limited (429). Waiting {wait_time}s before retry... (Attempt {attempt+1}/{max_retries})")
+                time.sleep(wait_time)
+                continue
+            elif "503" in err_str or "UNAVAILABLE" in err_str or "overloaded" in err_str.lower():
+                wait_time = 10 + (attempt * 10)
+                print(f"  ⏳ Gemini overloaded (503). Waiting {wait_time}s before retry... (Attempt {attempt+1}/{max_retries})")
                 time.sleep(wait_time)
                 continue
             else:

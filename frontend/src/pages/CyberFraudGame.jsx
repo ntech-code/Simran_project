@@ -6,7 +6,7 @@ import axios from 'axios'
 import '../index.css' // Import standard styles
 
 // Assuming global api url matches other pages
-const API_BASE_URL = '/api/game'
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000') + '/game'
 
 // Custom spinning 3D geometric prop for aesthetic interaction
 const HologramSphere = ({ isProcessing }) => {
