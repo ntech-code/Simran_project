@@ -261,6 +261,7 @@ KEYWORD_RULES = [
     (["atlys", "atlysindia", "atlys india"], "Travel", "Atlys (Visa)"),
     (["visa ", "visa fee", "visa service", "visa application"], "Travel", "Visa Services"),
     (["vistjet", "vitjet"], "Travel", "VistJet"),
+    (["oyo ", "oyo rooms", "oyorooms"], "Travel", "Hotel / Accommodation"),
 
     # ===== INVESTMENTS =====
     (["groww", "nextbillion tech"], "Investments", "Groww"),
@@ -479,7 +480,7 @@ class SpendAnalyzerAgent:
                 result = self._parse_tables(tables_found)
                 if not result.empty and len(result) > 3:
                     print(f"✓ Table extraction: {len(result)} transactions")
-                    return self._apply_chronology_fix(result)
+                    return result
         except ImportError:
             pass
         except Exception as e:
@@ -502,7 +503,7 @@ class SpendAnalyzerAgent:
         
         result = self._parse_text_transactions(full_text)
         if not result.empty and len(result) > 3:
-            return self._apply_chronology_fix(result)
+            return result
         
         print("⚠️ Regex failed, using LLM extraction...")
         return self._llm_extract_transactions(full_text)
@@ -534,7 +535,7 @@ class SpendAnalyzerAgent:
                 amt_cols = []
                 for cell in cells:
                     val = self._parse_amount(cell)
-                    if val > 0: amt_cols.append(val)
+                    if val != 0: amt_cols.append(val)
                 
                 if not amt_cols: continue
                 
@@ -551,24 +552,27 @@ class SpendAnalyzerAgent:
                     fallback_amt = valid_cands[-1] if valid_cands else amount_candidates[-1]
                     
                     if prev_balance is not None:
-                        delta = round(abs(current_balance - prev_balance), 2)
+                        delta = round(current_balance - prev_balance, 2)
                         
                         if delta > 0:
                             amount = delta
-                            is_credit = (current_balance > prev_balance)
-                            source_math = True
+                            is_credit = True
+                        elif delta < 0:
+                            amount = abs(delta)
+                            is_credit = False
                         else:
                             amount = fallback_amt
                             is_credit = any(kw in desc.upper() for kw in CREDIT_KW)
-                            source_math = False
+                        
+                        source_math = True
                     else:
-                        amount = fallback_amt
+                        amount = abs(fallback_amt)
                         is_credit = any(kw in desc.upper() for kw in CREDIT_KW)
                         source_math = False
                         
                     prev_balance = current_balance
                 elif len(amt_cols) == 1:
-                    amount = amt_cols[0]
+                    amount = abs(amt_cols[0])
                     if amount > 100000000: amount = 0 
                     is_credit = any(kw in desc.upper() for kw in CREDIT_KW)
                     source_math = False
@@ -588,10 +592,12 @@ class SpendAnalyzerAgent:
         s = str(val).strip()
         if not s or s in ['-', '0', '0.00'] or s.lower() in ['none', 'nan']:
             return 0
+        is_neg = s.startswith('-') or ('-' in s) or s.lower().endswith('dr')
         # Remove Rs., INR, ₹, spaces, and commas. Leave the decimal intact!
-        s = re.sub(r'(?i)rs\.?|inr|₹|\s|,', '', s).strip()
+        s = re.sub(r'(?i)rs\.?|inr|₹|\s|,|dr|cr', '', s).strip()
         try:
-            return abs(float(s))
+            parsed = float(s)
+            return -abs(parsed) if is_neg else abs(parsed)
         except ValueError:
             return 0
 
@@ -620,9 +626,14 @@ class SpendAnalyzerAgent:
             for p in parts:
                 cleaned = re.sub(r'(?i)rs\.?|inr|₹|,', '', p)
                 try:
-                    val = abs(float(cleaned))
-                    # Basic sanity: it must have a decimal if it's an amount, or just be a pure number
-                    if re.match(r'^\d+(\.\d{1,2})?$', cleaned):
+                    # Allow negative parsing for text too
+                    is_neg = p.startswith('-') or ('-' in p) or p.lower().endswith('dr')
+                    cleaned_num = re.sub(r'(?i)dr|cr', '', cleaned).strip()
+                    if cleaned_num.startswith('-'): cleaned_num = cleaned_num[1:]
+                    val = float(cleaned_num)
+                    if is_neg: val = -val
+                    
+                    if re.match(r'^-?\d+(\.\d{1,2})?$', '-'+cleaned_num if is_neg else cleaned_num):
                         amounts.append(val)
                     else:
                         desc_parts.append(p)
