@@ -52,6 +52,10 @@ export const adminAPI = {
     const response = await api.get('/admin/users')
     return response.data
   },
+  toggleBlockUser: async (id) => {
+    const response = await api.put(`/admin/users/${id}/block`)
+    return response.data
+  },
   deleteUser: async (id) => {
     const response = await api.delete(`/admin/users/${id}`)
     return response.data
